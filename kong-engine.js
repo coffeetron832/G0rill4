@@ -5,6 +5,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 const MAX_FILE_SIZE_MB = 100;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+// Mapa de traducciones para el tooltip
+const BANANA_I18N = {
+  es: '🍌 ¡Arrástrame hacia el gorila!',
+  en: '🍌 Drag me to the gorilla!',
+  pt: '🍌 Arraste-me para o gorila!',
+  fr: '🍌 Faites-moi glisser vers le gorille!',
+  de: '🍌 Zieh mich zum Gorilla!'
+};
+
 // --- Web Audio API Synth ---
 let audioCtx = null;
 
@@ -187,7 +196,7 @@ async function compressVideoFile(file) {
 
 // --- Clase Motor de Físicas del Banano ---
 class BananaPhysics {
-  constructor(canvasId) {
+  constructor(canvasId, lang = 'es') {
     this.canvas = document.getElementById(canvasId);
     if (!this.canvas) {
       this.canvas = document.createElement('canvas');
@@ -205,6 +214,7 @@ class BananaPhysics {
     this.ctx = this.canvas.getContext('2d');
     this.resizeCanvas();
 
+    this.currentLang = lang;
     this.x = 0;
     this.y = -50;
     this.vx = 0;
@@ -242,8 +252,16 @@ class BananaPhysics {
     this.tooltip.style.whiteSpace = 'nowrap';
     this.tooltip.style.opacity = '0';
     this.tooltip.style.transition = 'opacity 0.2s ease';
-    this.tooltip.innerHTML = '🍌 ¡Arrástrame hacia el gorila!';
+    this.updateLanguage(this.currentLang);
     document.body.appendChild(this.tooltip);
+  }
+
+  // Método para cambiar el idioma del tooltip dinámicamente
+  updateLanguage(lang) {
+    this.currentLang = lang;
+    if (this.tooltip) {
+      this.tooltip.innerHTML = BANANA_I18N[lang] || BANANA_I18N['es'];
+    }
   }
 
   resizeCanvas() {
@@ -411,8 +429,11 @@ class BananaPhysics {
   }
 }
 
-// Instancia global de la física
-const bananaSystem = new BananaPhysics('physicsCanvas');
+// Instancia global de la física (por defecto en español)
+const bananaSystem = new BananaPhysics('physicsCanvas', 'es');
+
+// Si cambias de idioma en tu aplicación, solo llamas:
+// bananaSystem.updateLanguage('en');
 
 // --- Helper Utilities ---
 function sanitizeFilename(filename) {
