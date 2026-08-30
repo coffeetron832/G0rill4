@@ -97,6 +97,83 @@ function playEatSound() {
   }
 }
 
+// --- Helpers para compresión de Audio (LameJS) y Video (FFmpeg.wasm) ---
+
+async function compressAudioFile(file, targetBitrate = 128) {
+  const arrayBuffer = await file.arrayBuffer();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+  const numChannels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const mp3encoder = new lamejs.Mp3Encoder(numChannels > 2 ? 2 : numChannels, sampleRate, targetBitrate);
+
+  const sampleLength = audioBuffer.length;
+  const leftSamples = audioBuffer.getChannelData(0);
+  const rightSamples = numChannels > 1 ? audioBuffer.getChannelData(1) : leftSamples;
+
+  const leftInt16 = new Int16Array(sampleLength);
+  const rightInt16 = new Int16Array(sampleLength);
+
+  for (let i = 0; i < sampleLength; i++) {
+    let sL = Math.max(-1, Math.min(1, leftSamples[i]));
+    leftInt16[i] = sL < 0 ? sL * 0x8000 : sL * 0x7FFF;
+
+    let sR = Math.max(-1, Math.min(1, rightSamples[i]));
+    rightInt16[i] = sR < 0 ? sR * 0x8000 : sR * 0x7FFF;
+  }
+
+  const mp3Data = [];
+  const chunkSize = 1152;
+
+  for (let i = 0; i < sampleLength; i += chunkSize) {
+    const leftChunk = leftInt16.subarray(i, i + chunkSize);
+    let mp3buf;
+    if (numChannels >= 2) {
+      const rightChunk = rightInt16.subarray(i, i + chunkSize);
+      mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+    } else {
+      mp3buf = mp3encoder.encodeBuffer(leftChunk);
+    }
+    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+  }
+
+  const endBuf = mp3encoder.flush();
+  if (endBuf.length > 0) mp3Data.push(endBuf);
+
+  return new Blob(mp3Data, { type: 'audio/mp3' });
+}
+
+let ffmpegInstance = null;
+
+async function compressVideoFile(file) {
+  const { createFFmpeg, fetchFile } = FFmpeg;
+  if (!ffmpegInstance) {
+    ffmpegInstance = createFFmpeg({ log: false });
+    await ffmpegInstance.load();
+  }
+
+  const inputName = 'input_' + Date.now() + '_' + file.name;
+  const outputName = 'compressed_' + Date.now() + '.mp4';
+
+  ffmpegInstance.FS('writeFile', inputName, await fetchFile(file));
+
+  await ffmpegInstance.run(
+    '-i', inputName,
+    '-vf', "scale='min(720,iw)':-2",
+    '-crf', '28',
+    '-preset', 'ultrafast',
+    outputName
+  );
+
+  const data = ffmpegInstance.FS('readFile', outputName);
+
+  ffmpegInstance.FS('unlink', inputName);
+  ffmpegInstance.FS('unlink', outputName);
+
+  return new Blob([data.buffer], { type: 'video/mp4' });
+}
+
 // --- Clase Motor de Físicas del Banano ---
 class BananaPhysics {
   constructor(canvasId) {
@@ -369,7 +446,7 @@ class TabInstance {
     });
 
     this.dropZone.addEventListener('click', () => this.fileInput.click());
-    
+
     this.dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
       this.dropZone.classList.add('dragover');
@@ -419,7 +496,7 @@ class TabInstance {
 
     this.selectedFile = file;
     this.fileName.textContent = `${file.name} (${formatBytes(file.size)})`;
-    
+
     const shortName = file.name.length > 12 ? file.name.slice(0, 10) + '...' : file.name;
     this.tabHeader.querySelector('.tab-title').textContent = shortName;
 
@@ -443,12 +520,27 @@ class TabInstance {
       this.previewUrl = URL.createObjectURL(file);
       img.src = this.previewUrl;
       this.previewContainer.appendChild(img);
+    } else if (type.startsWith('audio/') || name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.ogg')) {
+      const audio = document.createElement('audio');
+      audio.controls = true;
+      this.previewUrl = URL.createObjectURL(file);
+      audio.src = this.previewUrl;
+      audio.style.maxWidth = '100%';
+      this.previewContainer.appendChild(audio);
+    } else if (type.startsWith('video/') || name.endsWith('.mp4') || name.endsWith('.webm')) {
+      const video = document.createElement('video');
+      video.controls = true;
+      this.previewUrl = URL.createObjectURL(file);
+      video.src = this.previewUrl;
+      video.style.maxWidth = '100%';
+      video.style.maxHeight = '180px';
+      this.previewContainer.appendChild(video);
     } else if (type === 'application/pdf' || name.endsWith('.pdf')) {
       try {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const page = await pdf.getPage(1);
-        
+
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         const viewport = page.getViewport({ scale: 0.3 });
@@ -495,7 +587,7 @@ class TabInstance {
       this.compressBtn.disabled = true;
       this.downloadLink.classList.add('hidden');
       this.metricsTable.classList.add('hidden');
-      
+
       this.startSmashAnimation();
 
       let compressedBlob = null;
@@ -507,12 +599,12 @@ class TabInstance {
       if (fileType.startsWith('image/')) {
         compressedBlob = await new Promise((resolve, reject) => {
           new Compressor(this.selectedFile, {
-            quality: 0.6,            // Forzar reducción a calidad 0.6
-            maxWidth: 1600,          // Limitar dimensiones máximas
+            quality: 0.6,
+            maxWidth: 1600,
             maxHeight: 1600,
-            convertSize: 1000000,    // Convertir PNGs pesados a JPG
-            retainExif: false,       // Remover metadatos EXIF
-            strict: false,           // Retornar la imagen optimizada aun si difiere levemente
+            convertSize: 1000000,
+            retainExif: false,
+            strict: false,
             mimeType: fileType === 'image/png' ? 'image/png' : 'image/jpeg',
             success(result) {
               resolve(result);
@@ -531,8 +623,18 @@ class TabInstance {
         compressedBlob = new Blob([pdfBytes], { type: 'application/pdf' });
         methodUsed = 'Re-estructuración PDF';
         methodDescription = 'Agrupa y comprime la estructura interna de objetos del PDF mediante Object Streams, eliminando metadatos redundantes.';
+      } else if (fileType.startsWith('audio/') || fileNameLower.endsWith('.mp3') || fileNameLower.endsWith('.wav') || fileNameLower.endsWith('.ogg')) {
+        this.setStatus('⏳ Codificando audio MP3...', 'processing');
+        compressedBlob = await compressAudioFile(this.selectedFile, 128);
+        methodUsed = 'Re-codificación MP3 (LameJS)';
+        methodDescription = 'Decodifica el audio fuente y lo vuelve a empaquetar en MP3 optimizado a 128 kbps utilizando la librería especializada LameJS.';
+      } else if (fileType.startsWith('video/') || fileNameLower.endsWith('.mp4') || fileNameLower.endsWith('.webm')) {
+        this.setStatus('⏳ Re-codificando video (FFmpeg)...', 'processing');
+        compressedBlob = await compressVideoFile(this.selectedFile);
+        methodUsed = 'Compresión H.264 (FFmpeg.wasm)';
+        methodDescription = 'Re-escala la dimensión del video a un máximo de 720p y re-codifica el bitrate utilizando aceleración WebAssembly.';
       } else if (
-        fileType.startsWith('text/') || fileNameLower.endsWith('.json') || 
+        fileType.startsWith('text/') || fileNameLower.endsWith('.json') ||
         fileNameLower.endsWith('.csv') || fileNameLower.endsWith('.svg')
       ) {
         const text = await this.selectedFile.text();
@@ -561,7 +663,7 @@ class TabInstance {
 
       this.revokeDownloadUrl();
       this.downloadUrl = URL.createObjectURL(compressedBlob);
-      
+
       const safeName = sanitizeFilename(this.selectedFile.name);
       this.downloadLink.href = this.downloadUrl;
       this.downloadLink.download = safeName;
@@ -570,7 +672,6 @@ class TabInstance {
 
       this.setStatus('✔ Completado', 'completed');
 
-      // Soltar banano con físicas al gorila de la pestaña activa
       const activeGorilla = this.tabBody.querySelector('.gorilla');
       bananaSystem.spawn(activeGorilla);
 
@@ -611,7 +712,7 @@ function sanitizeFilename(filename) {
 }
 
 function escapeHTML(str) {
-  return str.replace(/[&<>'"]/g, 
+  return str.replace(/[&<>'"]/g,
     tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
   );
 }
@@ -662,14 +763,14 @@ function getFileEmoji(file) {
   if (type.startsWith('image/')) return '🖼️';
   if (type === 'application/pdf' || name.endsWith('.pdf')) return '📕';
   if (
-    type.startsWith('text/') || name.endsWith('.json') || 
+    type.startsWith('text/') || name.endsWith('.json') ||
     name.endsWith('.csv') || name.endsWith('.svg') ||
     name.endsWith('.xml') || name.endsWith('.js') || name.endsWith('.py')
   ) return '📝';
   if (type.startsWith('audio/')) return '🎵';
   if (type.startsWith('video/')) return '🎬';
   if (
-    name.endsWith('.zip') || name.endsWith('.tar') || 
+    name.endsWith('.zip') || name.endsWith('.tar') ||
     name.endsWith('.gz') || name.endsWith('.rar') || name.endsWith('.7z')
   ) return '📦';
 
