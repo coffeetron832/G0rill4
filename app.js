@@ -99,14 +99,15 @@ function playEatSound() {
 
 // --- Helpers para compresión de Audio (LameJS) y Video (FFmpeg.wasm) ---
 
+// Compresión de Audio Optimizada (Procesamiento por trozos / No Bloqueante)
 async function compressAudioFile(file, targetBitrate = 128) {
   const arrayBuffer = await file.arrayBuffer();
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
-  const numChannels = audioBuffer.numberOfChannels;
+  const numChannels = Math.min(audioBuffer.numberOfChannels, 2);
   const sampleRate = audioBuffer.sampleRate;
-  const mp3encoder = new lamejs.Mp3Encoder(numChannels > 2 ? 2 : numChannels, sampleRate, targetBitrate);
+  const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, targetBitrate);
 
   const sampleLength = audioBuffer.length;
   const leftSamples = audioBuffer.getChannelData(0);
@@ -115,27 +116,40 @@ async function compressAudioFile(file, targetBitrate = 128) {
   const leftInt16 = new Int16Array(sampleLength);
   const rightInt16 = new Int16Array(sampleLength);
 
+  // Convertir Float32 a Int16 directamente
   for (let i = 0; i < sampleLength; i++) {
-    let sL = Math.max(-1, Math.min(1, leftSamples[i]));
-    leftInt16[i] = sL < 0 ? sL * 0x8000 : sL * 0x7FFF;
+    let sL = leftSamples[i];
+    leftInt16[i] = sL < 0 ? sL * 32768 : sL * 32767;
 
-    let sR = Math.max(-1, Math.min(1, rightSamples[i]));
-    rightInt16[i] = sR < 0 ? sR * 0x8000 : sR * 0x7FFF;
+    if (numChannels > 1) {
+      let sR = rightSamples[i];
+      rightInt16[i] = sR < 0 ? sR * 32768 : sR * 32767;
+    }
   }
 
   const mp3Data = [];
   const chunkSize = 1152;
+  const yieldInterval = 100; // Ceder el control al event loop cada 100 chunks
+  let chunksProcessed = 0;
 
   for (let i = 0; i < sampleLength; i += chunkSize) {
     const leftChunk = leftInt16.subarray(i, i + chunkSize);
     let mp3buf;
-    if (numChannels >= 2) {
+
+    if (numChannels > 1) {
       const rightChunk = rightInt16.subarray(i, i + chunkSize);
       mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
     } else {
       mp3buf = mp3encoder.encodeBuffer(leftChunk);
     }
+
     if (mp3buf.length > 0) mp3Data.push(mp3buf);
+
+    chunksProcessed++;
+    if (chunksProcessed % yieldInterval === 0) {
+      // Liberar el hilo principal para que la UI se mantenga suave
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
   }
 
   const endBuf = mp3encoder.flush();
@@ -174,7 +188,7 @@ async function compressVideoFile(file) {
   return new Blob([data.buffer], { type: 'video/mp4' });
 }
 
-// --- Clase Motor de Físicas del Banano ---
+// --- Clase Motor de Físicas del Banano (Basado en Delta Time) ---
 class BananaPhysics {
   constructor(canvasId) {
     this.canvas = document.getElementById(canvasId);
@@ -200,6 +214,7 @@ class BananaPhysics {
     this.isEaten = true;
     this.animId = null;
     this.gorillaEl = null;
+    this.lastTime = 0;
 
     window.addEventListener('resize', () => this.resizeCanvas());
     this.bindMouseEvents();
@@ -218,9 +233,10 @@ class BananaPhysics {
     this.vy = 2;
     this.isEaten = false;
     this.isDragging = false;
+    this.lastTime = performance.now();
 
     this.canvas.style.pointerEvents = 'auto';
-    if (!this.animId) this.loop();
+    if (!this.animId) this.loop(performance.now());
   }
 
   bindMouseEvents() {
@@ -282,26 +298,31 @@ class BananaPhysics {
 
   triggerGorillaEatEffect() {
     playEatSound();
-    this.gorillaEl.style.transform = 'scale(1.4)';
-    this.gorillaEl.style.transition = 'transform 0.2s ease';
+    if (this.gorillaEl) {
+      this.gorillaEl.style.transform = 'scale(1.4)';
+      this.gorillaEl.style.transition = 'transform 0.2s ease';
+    }
 
     setTimeout(() => {
-      this.gorillaEl.style.transform = 'scale(1)';
+      if (this.gorillaEl) this.gorillaEl.style.transform = 'scale(1)';
       this.canvas.style.pointerEvents = 'none';
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }, 400);
   }
 
-  update() {
+  update(dt) {
     if (this.isEaten) return;
 
-    if (!this.isDragging) {
-      this.vy += this.gravity;
-      this.vx *= this.friction;
-      this.vy *= this.friction;
+    // Escalado de físicas basado en delta time (~1 para 60fps)
+    const factor = Math.min(dt / 16.66, 2.0);
 
-      this.x += this.vx;
-      this.y += this.vy;
+    if (!this.isDragging) {
+      this.vy += this.gravity * factor;
+      this.vx *= Math.pow(this.friction, factor);
+      this.vy *= Math.pow(this.friction, factor);
+
+      this.x += this.vx * factor;
+      this.y += this.vy * factor;
 
       const floor = this.canvas.height - this.radius - 10;
       if (this.y > floor) {
@@ -328,11 +349,15 @@ class BananaPhysics {
     }
   }
 
-  loop() {
-    this.update();
+  loop(timestamp) {
+    const dt = timestamp - this.lastTime;
+    this.lastTime = timestamp;
+
+    this.update(dt || 16.66);
     this.draw();
+
     if (!this.isEaten) {
-      this.animId = requestAnimationFrame(() => this.loop());
+      this.animId = requestAnimationFrame((t) => this.loop(t));
     } else {
       this.animId = null;
     }
