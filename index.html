@@ -36,6 +36,15 @@
   <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 </head>
 <body>
+
+  <div class="lang-selector-container">
+          <label for="langSelect" data-i18n="langLabel">🌐 Idioma / Language:</label>
+          <select id="langSelect" class="lang-select">
+            <option value="es" selected>Español</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+  
   <div class="container">
     <div class="app-wrapper">
       
@@ -51,14 +60,6 @@
       💡 Puedes abrir varias pestañas usando el botón <strong>+</strong> para procesar diferentes archivos al mismo tiempo.
       </p>
         </header>
-
-        <div class="lang-selector-container">
-          <label for="langSelect" data-i18n="langLabel">🌐 Idioma / Language:</label>
-          <select id="langSelect" class="lang-select">
-            <option value="es" selected>Español</option>
-            <option value="en">English</option>
-          </select>
-        </div>
       </aside>
 
       <!-- Panel Derecho: Pestañas y Zona de Carga/Compresión -->
