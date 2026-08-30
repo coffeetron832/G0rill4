@@ -7,11 +7,11 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 // Mapa de traducciones para el tooltip
 const BANANA_I18N = {
-  es: '🍌 ¡Arrástrame hacia el gorila!',
-  en: '🍌 Drag me to the gorilla!',
-  pt: '🍌 Arraste-me para o gorila!',
-  fr: '🍌 Faites-moi glisser vers le gorille!',
-  de: '🍌 Zieh mich zum Gorilla!'
+  es: '¡Arrástrame hacia el gorila!',
+  en: 'Drag me to the gorilla!',
+  pt: 'Arraste-me para o gorila!',
+  fr: 'Faites-moi glisser vers le gorille!',
+  de: 'Zieh mich zum Gorilla!'
 };
 
 // --- Web Audio API Synth ---
@@ -407,7 +407,7 @@ class BananaPhysics {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     if (!this.isEaten) {
-      this.ctx.font = '36px sans-serif';
+      this.ctx.font = '30px sans-serif';
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
       this.ctx.fillText('🍌', this.x, this.y);
