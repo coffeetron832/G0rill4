@@ -434,6 +434,17 @@ button:disabled { background: #ccc; cursor: not-allowed; }
   line-height: 1.45;
 }
 
+.footer-link {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: #111;
+  text-decoration: underline;
+}
+
 /* Ajuste responsive para que en móviles el borde se aplique arriba o se centre adecuadamente */
 @media (max-width: 860px) {
   .tabs-guide-text {
