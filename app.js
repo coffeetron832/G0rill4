@@ -507,9 +507,12 @@ class TabInstance {
       if (fileType.startsWith('image/')) {
         compressedBlob = await new Promise((resolve, reject) => {
           new Compressor(this.selectedFile, {
-            quality: 0.75,
-            maxWidth: 1920,
-            maxHeight: 1920,
+            quality: 0.6,            // Forzar reducción a calidad 0.6
+            maxWidth: 1600,          // Limitar dimensiones máximas
+            maxHeight: 1600,
+            convertSize: 1000000,    // Convertir PNGs pesados a JPG
+            retainExif: false,       // Remover metadatos EXIF
+            strict: false,           // Retornar la imagen optimizada aun si difiere levemente
             mimeType: fileType === 'image/png' ? 'image/png' : 'image/jpeg',
             success(result) {
               resolve(result);
@@ -520,7 +523,7 @@ class TabInstance {
           });
         });
         methodUsed = 'Optimización Canvas (Compressor.js)';
-        methodDescription = 'Remuestrea la imagen utilizando HTML5 Canvas, ajustando la calidad de compresión e identificando transparencias.';
+        methodDescription = 'Remuestrea la imagen utilizando HTML5 Canvas, eliminando metadatos EXIF, ajustando dimensiones y reduciendo la calidad a 0.6.';
       } else if (fileType === 'application/pdf' || fileNameLower.endsWith('.pdf')) {
         const arrayBuffer = await this.selectedFile.arrayBuffer();
         const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
