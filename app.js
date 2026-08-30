@@ -256,10 +256,8 @@ class TabInstance {
   startSmashAnimation() {
     this.crushStage.classList.add('smash-active');
     
-    // Sonido inmediato al primer impacto (al 45% del ciclo CSS)
     setTimeout(() => playSquishSound(), 290);
 
-    // Repetir el sonido sincronizado con el ciclo de la animación (0.65s = 650ms)
     this.squishInterval = setInterval(() => {
       playSquishSound();
     }, 650);
@@ -291,10 +289,23 @@ class TabInstance {
       const fileNameLower = this.selectedFile.name.toLowerCase();
 
       if (fileType.startsWith('image/')) {
-        const options = { maxSizeMB: 0.8, maxWidthOrHeight: 1920, useWebWorker: true, fileType: fileType };
-        compressedBlob = await imageCompression(this.selectedFile, options);
-        methodUsed = 'Optimización de Píxeles';
-        methodDescription = 'Reduce la resolución excesiva y ajusta la compresión de color reduciendo datos no perceptibles por el ojo humano.';
+        // Implementación con Compressor.js envolviendo su callback en una Promise
+        compressedBlob = await new Promise((resolve, reject) => {
+          new Compressor(this.selectedFile, {
+            quality: 0.75,
+            maxWidth: 1920,
+            maxHeight: 1920,
+            mimeType: fileType,
+            success(result) {
+              resolve(result);
+            },
+            error(err) {
+              reject(err);
+            },
+          });
+        });
+        methodUsed = 'Optimización Canvas (Compressor.js)';
+        methodDescription = 'Remuestrea la imagen utilizando HTML5 Canvas, ajustando la calidad de compresión JPEG/WebP y reescalando dimensiones excesivas.';
       } else if (fileType === 'application/pdf' || fileNameLower.endsWith('.pdf')) {
         const arrayBuffer = await this.selectedFile.arrayBuffer();
         const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
