@@ -282,6 +282,13 @@ class BananaPhysics {
         this.isDragging = true;
         this.dragOffsetX = pos.x - this.x;
         this.dragOffsetY = pos.y - this.y;
+
+        // Ocultar tooltip al iniciar el arrastre
+        if (this.tooltip) this.tooltip.style.opacity = '0';
+
+        // Prevenir selección de texto
+        if (e.cancelable) e.preventDefault();
+        if (window.getSelection) window.getSelection().removeAllRanges();
       }
     };
 
@@ -292,6 +299,9 @@ class BananaPhysics {
         this.vy = (pos.y - this.dragOffsetY - this.y) * 0.3;
         this.x = pos.x - this.dragOffsetX;
         this.y = pos.y - this.dragOffsetY;
+
+        // Prevenir selección de texto durante el movimiento
+        if (e.cancelable) e.preventDefault();
       }
     };
 
@@ -303,8 +313,8 @@ class BananaPhysics {
     window.addEventListener('mousemove', moveDrag);
     window.addEventListener('mouseup', stopDrag);
 
-    window.addEventListener('touchstart', startDrag, { passive: true });
-    window.addEventListener('touchmove', moveDrag, { passive: true });
+    window.addEventListener('touchstart', startDrag, { passive: false });
+    window.addEventListener('touchmove', moveDrag, { passive: false });
     window.addEventListener('touchend', stopDrag);
   }
 
@@ -357,8 +367,8 @@ class BananaPhysics {
         this.y = floor;
         this.vy *= this.bounce;
 
-        // Mostrar el tooltip solo cuando toque el suelo por primera vez
-        if (this.tooltip) this.tooltip.style.opacity = '1';
+        // Mostrar el tooltip solo cuando toque el suelo y no esté siendo arrastrado
+        if (this.tooltip && !this.isDragging) this.tooltip.style.opacity = '1';
       }
 
       if (this.x < this.radius || this.x > this.canvas.width - this.radius) {
