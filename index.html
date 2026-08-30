@@ -3,7 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>G0rill4</title>
+  
+  <!-- SEO Básico -->
+  <title>G0rill4 - Compresor de Archivos Online 100% Privado y Gratis</title>
+  <meta name="description" content="Comprime imágenes, documentos PDF y archivos de texto directamente en tu navegador sin subir nada a servidores. Rápido, seguro y gratuito.">
+  <meta name="keywords" content="compresor de archivos, comprimir pdf, optimizar imagenes, compressor.js, minificar codigo, compresor online gratis">
+  <meta name="author" content="jahp">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph / Redes Sociales -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="G0rill4 - Compresor de Archivos Online">
+  <meta property="og:description" content="¡Deja que el gorila aplaste tus archivos! Compresión rápida de imágenes, PDFs y texto en el cliente.">
+  <meta property="og:site_name" content="G0rill4">
+
+  <!-- Favicon Emoji -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦍</text></svg>">
 
   <!-- Google Fonts: Finger Paint -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,7 +29,7 @@
   <link rel="stylesheet" href="styles.css">
 
   <!-- Librería 1: Compresión de Imágenes con Compressor.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
   <!-- Librería 2: Compresión de PDFs -->
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <!-- Librería 3: Renderizado de previsualización para PDFs -->
@@ -22,18 +37,21 @@
 </head>
 <body>
   <div class="container">
-    <div class="header-title">
+    <header class="header-title">
       <h1>G0rill4</h1>
       <p>¡Deja que el gorila aplaste tus archivos!</p>
-    </div>
+      <small class="allowed-formats">
+        Formatos soportados: <strong>JPG, PNG, WEBP, PDF, SVG, JSON, CSV, TXT</strong> (Máx. 100 MB)
+      </small>
+    </header>
 
     <!-- Barra de Pestañas -->
-    <div class="tabs-bar" id="tabsBar">
+    <nav class="tabs-bar" id="tabsBar">
       <button class="btn-add-tab" id="addTabBtn" title="Nueva pestaña">+</button>
-    </div>
+    </nav>
 
     <!-- Contenedor Principal dinámico -->
-    <div id="tabContentsContainer"></div>
+    <main id="tabContentsContainer"></main>
   </div>
 
   <!-- Footer Sticky Horizontal -->
