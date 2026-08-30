@@ -2,7 +2,7 @@
   <img src="nest.png" alt="Banner G0rill4" width="950px">
 </div>
 
-Let the gorilla shred your files quickly, privately, and hassle-free—right in your browser!
+It is a lightweight web tool to compress your files without having to upload them to any external server. 
 
 ## Highlights
 
