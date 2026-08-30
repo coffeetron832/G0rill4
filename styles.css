@@ -53,6 +53,17 @@ h1 {
   font-weight: 400;
   line-height: 1.1;
   margin-bottom: 8px;
+
+  /* Degradado de tonos caoba y madera natural */
+  background: linear-gradient(180deg, #a45a2a 0%, #6d3517 50%, #4a210d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  /* Sombra para dar efecto de volumen/tallado */
+  filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.25));
+  
+  /* Permite ver la sombra correctamente con el clip de texto */
+  display: inline-block;
 }
 
 p {
