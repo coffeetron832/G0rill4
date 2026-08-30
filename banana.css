@@ -445,6 +445,65 @@ button:disabled { background: #ccc; cursor: not-allowed; }
   text-decoration: underline;
 }
 
+/* Posicionamiento fijo en la esquina superior derecha */
+.lang-selector-container {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.lang-selector-container label {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  user-select: none;
+}
+
+.lang-select {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  padding: 3px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.lang-select:hover, .lang-select:focus {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.lang-select option {
+  background: #1e1e1e;
+  color: #ffffff;
+}
+
+/* Ajuste responsivo para pantallas pequeñas */
+@media (max-width: 600px) {
+  .lang-selector-container {
+    top: 10px;
+    right: 10px;
+    padding: 4px 8px;
+  }
+
+  .lang-selector-container label {
+    display: none; /* Oculta la etiqueta en móviles para ahorrar espacio */
+  }
+}
+
 /* Ajuste responsive para que en móviles el borde se aplique arriba o se centre adecuadamente */
 @media (max-width: 860px) {
   .tabs-guide-text {
