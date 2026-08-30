@@ -261,7 +261,8 @@ class BananaPhysics {
     this.isDragging = false;
     this.lastTime = performance.now();
 
-    if (this.tooltip) this.tooltip.style.opacity = '1';
+    // Mantener oculto al aparecer en la parte superior
+    if (this.tooltip) this.tooltip.style.opacity = '0';
 
     if (!this.animId) this.loop(performance.now());
   }
@@ -352,9 +353,12 @@ class BananaPhysics {
       this.y += this.vy * factor;
 
       const floor = this.canvas.height - this.radius - 10;
-      if (this.y > floor) {
+      if (this.y >= floor) {
         this.y = floor;
         this.vy *= this.bounce;
+
+        // Mostrar el tooltip solo cuando toque el suelo por primera vez
+        if (this.tooltip) this.tooltip.style.opacity = '1';
       }
 
       if (this.x < this.radius || this.x > this.canvas.width - this.radius) {
