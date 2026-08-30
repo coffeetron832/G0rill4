@@ -1,5 +1,9 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+// Constantes de configuración
+const MAX_FILE_SIZE_MB = 100;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 // --- Web Audio API Synth (Sonido de Aplastar/Crujido) ---
 let audioCtx = null;
 
@@ -18,7 +22,7 @@ function playSquishSound() {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
 
-    // 1. Oscilador de Impacto (Tono grave en caída rápido)
+    // Oscilador de Impacto
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
 
@@ -35,8 +39,8 @@ function playSquishSound() {
     osc.start(now);
     osc.stop(now + 0.12);
 
-    // 2. Ruido Blanco (Textura de crujido / aplastado húmedo)
-    const bufferSize = ctx.sampleRate * 0.15; // 150ms
+    // Ruido Blanco para crujido
+    const bufferSize = ctx.sampleRate * 0.15;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -46,7 +50,6 @@ function playSquishSound() {
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
 
-    // Filtro Pasa Bajas para amortiguar el ruido
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.setValueAtTime(800, now);
@@ -82,6 +85,7 @@ class TabInstance {
     this.defaultTitle = title;
     this.title = title;
     this.selectedFile = null;
+    this.previewUrl = null;
     this.downloadUrl = null;
     this.squishInterval = null;
 
@@ -94,7 +98,7 @@ class TabInstance {
     this.tabHeader = document.createElement('div');
     this.tabHeader.className = 'tab-btn';
     this.tabHeader.innerHTML = `
-      <span class="tab-title">${this.title}</span>
+      <span class="tab-title">${escapeHTML(this.title)}</span>
       <span class="tab-close">✕</span>
     `;
     tabsBar.insertBefore(this.tabHeader, addTabBtn);
@@ -199,7 +203,26 @@ class TabInstance {
     this.statusBadge.className = `status-badge ${type}`;
   }
 
+  revokePreviewUrl() {
+    if (this.previewUrl) {
+      URL.revokeObjectURL(this.previewUrl);
+      this.previewUrl = null;
+    }
+  }
+
+  revokeDownloadUrl() {
+    if (this.downloadUrl) {
+      URL.revokeObjectURL(this.downloadUrl);
+      this.downloadUrl = null;
+    }
+  }
+
   async handleFileSelect(file) {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      this.setStatus(`✖ El archivo supera el límite de ${MAX_FILE_SIZE_MB}MB`, 'error');
+      return;
+    }
+
     this.selectedFile = file;
     this.fileName.textContent = `${file.name} (${formatBytes(file.size)})`;
     
@@ -216,15 +239,15 @@ class TabInstance {
   }
 
   async updatePreview(file) {
+    this.revokePreviewUrl();
     this.previewContainer.innerHTML = '';
     const type = file.type;
     const name = file.name.toLowerCase();
 
     if (type.startsWith('image/')) {
       const img = document.createElement('img');
-      const reader = new FileReader();
-      reader.onload = (e) => { img.src = e.target.result; };
-      reader.readAsDataURL(file);
+      this.previewUrl = URL.createObjectURL(file);
+      img.src = this.previewUrl;
       this.previewContainer.appendChild(img);
     } else if (type === 'application/pdf' || name.endsWith('.pdf')) {
       try {
@@ -255,7 +278,6 @@ class TabInstance {
 
   startSmashAnimation() {
     this.crushStage.classList.add('smash-active');
-    
     setTimeout(() => playSquishSound(), 290);
 
     this.squishInterval = setInterval(() => {
@@ -289,13 +311,12 @@ class TabInstance {
       const fileNameLower = this.selectedFile.name.toLowerCase();
 
       if (fileType.startsWith('image/')) {
-        // Implementación con Compressor.js envolviendo su callback en una Promise
         compressedBlob = await new Promise((resolve, reject) => {
           new Compressor(this.selectedFile, {
             quality: 0.75,
             maxWidth: 1920,
             maxHeight: 1920,
-            mimeType: fileType,
+            mimeType: fileType === 'image/png' ? 'image/png' : 'image/jpeg',
             success(result) {
               resolve(result);
             },
@@ -305,7 +326,7 @@ class TabInstance {
           });
         });
         methodUsed = 'Optimización Canvas (Compressor.js)';
-        methodDescription = 'Remuestrea la imagen utilizando HTML5 Canvas, ajustando la calidad de compresión JPEG/WebP y reescalando dimensiones excesivas.';
+        methodDescription = 'Remuestrea la imagen utilizando HTML5 Canvas, ajustando la calidad de compresión e identificando transparencias.';
       } else if (fileType === 'application/pdf' || fileNameLower.endsWith('.pdf')) {
         const arrayBuffer = await this.selectedFile.arrayBuffer();
         const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
@@ -332,7 +353,6 @@ class TabInstance {
       const ratio = (((originalSize - compressedSize) / originalSize) * 100).toFixed(2);
 
       await new Promise((resolve) => setTimeout(resolve, 1300));
-      this.stopSmashAnimation();
 
       this.mOrig.textContent = formatBytes(originalSize);
       this.mComp.textContent = formatBytes(compressedSize);
@@ -342,28 +362,28 @@ class TabInstance {
       this.mMethodTooltip.textContent = methodDescription;
       this.metricsTable.classList.remove('hidden');
 
-      if (this.downloadUrl) URL.revokeObjectURL(this.downloadUrl);
+      this.revokeDownloadUrl();
       this.downloadUrl = URL.createObjectURL(compressedBlob);
+      
+      const safeName = sanitizeFilename(this.selectedFile.name);
       this.downloadLink.href = this.downloadUrl;
-      this.downloadLink.download = this.selectedFile.name;
-      this.downloadLink.textContent = `Descargar ${this.selectedFile.name}`;
+      this.downloadLink.download = safeName;
+      this.downloadLink.textContent = `Descargar ${safeName}`;
       this.downloadLink.classList.remove('hidden');
 
       this.setStatus('✔ Completado', 'completed');
     } catch (err) {
-      this.stopSmashAnimation();
       this.setStatus(`✖ ${err.message || 'Error al procesar'}`, 'error');
     } finally {
+      this.stopSmashAnimation();
       this.compressBtn.disabled = false;
     }
   }
 
   reset() {
     this.stopSmashAnimation();
-    if (this.downloadUrl) {
-      URL.revokeObjectURL(this.downloadUrl);
-      this.downloadUrl = null;
-    }
+    this.revokePreviewUrl();
+    this.revokeDownloadUrl();
     this.selectedFile = null;
     this.fileInput.value = '';
     this.fileName.textContent = 'Ningún archivo seleccionado';
@@ -377,10 +397,21 @@ class TabInstance {
 
   destroy() {
     this.stopSmashAnimation();
-    if (this.downloadUrl) URL.revokeObjectURL(this.downloadUrl);
+    this.revokePreviewUrl();
+    this.revokeDownloadUrl();
     this.tabHeader.remove();
     this.tabBody.remove();
   }
+}
+
+function sanitizeFilename(filename) {
+  return filename.replace(/[^a-zA-Z0-9_.-]/g, '_');
+}
+
+function escapeHTML(str) {
+  return str.replace(/[&<>'"]/g, 
+    tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+  );
 }
 
 function createTab() {
