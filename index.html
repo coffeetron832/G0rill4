@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>G0rill4</title>
+
+  <!-- Google Fonts: Finger Paint -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Finger+Paint&display=swap" rel="stylesheet">
+
+  <!-- Hoja de Estilos -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Librería 1: Compresión de Imágenes -->
+  <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.min.js"></script>
+  <!-- Librería 2: Compresión de PDFs -->
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <!-- Librería 3: Renderizado de previsualización para PDFs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="header-title">
+      <h1>G0rill4</h1>
+      <p>¡Deja que el gorila aplaste tus archivos!</p>
+    </div>
+
+    <!-- Barra de Pestañas -->
+    <div class="tabs-bar" id="tabsBar">
+      <button class="btn-add-tab" id="addTabBtn" title="Nueva pestaña">+</button>
+    </div>
+
+    <!-- Contenedor Principal dinámico -->
+    <div id="tabContentsContainer"></div>
+  </div>
+
+  <!-- Footer Sticky Horizontal -->
+  <footer class="sticky-footer">
+    <span>G0rill4</span>
+    <span class="dot-separator">|</span>
+    <span>v1.0.0</span>
+    <span class="dot-separator">|</span>
+    <span>&copy; 2026 jahp.</span>
+    <span class="dot-separator">|</span>
+    <span>Todos los derechos reservados.</span>
+  </footer>
+
+  <!-- Lógica Principal -->
+  <script src="app.js"></script>
+</body>
+</html>
