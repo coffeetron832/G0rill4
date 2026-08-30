@@ -105,7 +105,7 @@ p {
   background: #f0f0f0;
   border: 1px solid #ccc;
   border-radius: 6px 6px 0 0;
-  padding: 6px 10px;
+  padding: 5px 9px;
   font-size: 12px;
   font-weight: bold;
   color: #555;
@@ -140,9 +140,9 @@ p {
   background: #eee;
   border: 1px dashed #aaa;
   border-radius: 6px;
-  width: 28px;
-  height: 28px;
-  font-size: 16px;
+  width: 26px;
+  height: 26px;
+  font-size: 15px;
   font-weight: bold;
   cursor: pointer;
   display: flex;
@@ -155,22 +155,23 @@ p {
   background: #ddd;
 }
 
+/* Contenedor Compactado */
 .box {
   border: 1px solid #ccc;
   border-radius: 0 0 8px 8px;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   margin-top: -1px;
   background: #fff;
 }
 
-/* Área Drag and Drop */
+/* Área Drag and Drop Compactada */
 .drop-zone {
   border: 2px dashed #bbb;
   border-radius: 8px;
-  padding: 24px 16px;
+  padding: 14px 12px;
   text-align: center;
   background: #fafafa;
   cursor: pointer;
@@ -188,25 +189,25 @@ p {
   color: #333;
 }
 
-/* Escenario del Gorila */
+/* Escenario del Gorila Compactado */
 .crush-stage {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  height: 150px;
+  height: 105px;
   position: relative;
-  margin: 10px 0;
+  margin: 4px 0;
   overflow: hidden;
 }
 
 .gorilla {
-  font-size: 56px;
+  font-size: 48px;
   z-index: 2;
   transform: translateY(0);
   user-select: none;
   line-height: 1;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .file-preview-container {
@@ -214,15 +215,15 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 56px;
+  height: 44px;
   transform-origin: bottom center;
   transition: transform 0.2s ease;
 }
 
 .file-preview-container img, 
 .file-preview-container canvas {
-  max-height: 52px;
-  max-width: 90px;
+  max-height: 42px;
+  max-width: 80px;
   object-fit: contain;
   border-radius: 4px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
@@ -231,12 +232,12 @@ p {
 }
 
 .file-icon {
-  font-size: 38px;
+  font-size: 32px;
   user-select: none;
   line-height: 1;
 }
 
-/* Animaciones */
+/* Animaciones de Golpeteo */
 .smash-active .gorilla {
   animation: gorillaSmash 0.65s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
@@ -247,15 +248,15 @@ p {
 
 @keyframes gorillaSmash {
   0% { transform: translateY(0) scale(1) rotate(0deg); }
-  30% { transform: translateY(-45px) scale(1.15, 0.9) rotate(-4deg); }
+  30% { transform: translateY(-35px) scale(1.15, 0.9) rotate(-4deg); }
   45% { transform: translateY(2px) scale(0.85, 1.25) rotate(2deg); }
-  60% { transform: translateY(-6px) scale(1.05, 0.95); }
+  60% { transform: translateY(-4px) scale(1.05, 0.95); }
   75%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
 }
 
 @keyframes fileSmashFlat {
   0%, 35% { transform: scale(1, 1); opacity: 1; }
-  45% { transform: scale(1.4, 0.15) translateY(10px); opacity: 0.8; }
+  45% { transform: scale(1.4, 0.15) translateY(8px); opacity: 0.8; }
   60% { transform: scale(0.9, 1.1) translateY(-2px); }
   75%, 100% { transform: scale(1, 1) translateY(0); opacity: 1; }
 }
@@ -263,12 +264,12 @@ p {
 button, .btn-link {
   display: block;
   width: 100%;
-  padding: 10px;
+  padding: 8px 10px;
   background: #111;
   color: #fff;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13.5px;
   cursor: pointer;
   text-align: center;
   text-decoration: none;
@@ -278,17 +279,17 @@ button:hover, .btn-link:hover { background: #333; }
 button:disabled { background: #ccc; cursor: not-allowed; }
 
 .file-name {
-  font-size: 13px;
+  font-size: 12.5px;
   word-break: break-all;
   color: #222;
   text-align: center;
 }
 
 .output {
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12.5px;
+  line-height: 1.4;
   border-top: 1px solid #eee;
-  padding-top: 12px;
+  padding-top: 8px;
 }
 
 .status-badge {
@@ -306,13 +307,13 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 
 .metrics-table {
   width: 100%;
-  margin-top: 8px;
+  margin-top: 6px;
   border-collapse: collapse;
   font-size: 12px;
 }
 
 .metrics-table td {
-  padding: 6px 0;
+  padding: 4px 0;
   border-bottom: 1px dashed #eee;
   vertical-align: middle;
 }
@@ -425,13 +426,13 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 }
 
 .tabs-guide-text {
-  margin-top: 12px;
-  font-size: 13.5px;
+  margin-top: 8px;
+  font-size: 12.5px;
   color: #444;
   background: #f8f9fa;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 0 6px 6px 0;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .footer-link {
@@ -481,7 +482,7 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 
 .lang-select:hover, 
 .lang-select:focus {
-  color: #a45a2a; /* Tono caoba alineado al título */
+  color: #a45a2a;
 }
 
 .lang-select option {
@@ -489,7 +490,7 @@ button:disabled { background: #ccc; cursor: not-allowed; }
   color: #111111;
 }
 
-/* Ajuste responsivo para móviles */
+/* Ajustes responsivos */
 @media (max-width: 600px) {
   .lang-selector-container {
     top: 12px;
@@ -501,16 +502,6 @@ button:disabled { background: #ccc; cursor: not-allowed; }
   }
 }
 
-/* Ajuste responsive para que en móviles el borde se aplique arriba o se centre adecuadamente */
-@media (max-width: 860px) {
-  .tabs-guide-text {
-    text-align: left;
-    margin: 12px auto 0 auto;
-    max-width: 480px;
-  }
-}
-
-/* Responsividad para pantallas pequeñas */
 @media (max-width: 860px) {
   body {
     align-items: flex-start;
@@ -533,5 +524,11 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 
   .right-panel {
     max-width: 100%;
+  }
+
+  .tabs-guide-text {
+    text-align: left;
+    margin: 8px auto 0 auto;
+    max-width: 480px;
   }
 }
