@@ -368,3 +368,13 @@ button:disabled { background: #ccc; cursor: not-allowed; }
   font-size: 0.85rem;
   opacity: 0.8;
 }
+
+#physicsCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none; /* Deja pasar clics excepto cuando se detecte interacción en el banano */
+  z-index: 9999;
+}
