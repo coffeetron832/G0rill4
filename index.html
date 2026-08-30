@@ -28,41 +28,42 @@
   <!-- Hoja de Estilos -->
   <link rel="stylesheet" href="styles.css">
 
-  <!-- Librería 1: Compresión de Imágenes con Compressor.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
-
-<!-- Librería 2: Compresión de PDFs -->
-<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-
-<!-- Librería 3: Renderizado de previsualización para PDFs -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-
-<!-- Librería 4: Compresión especializada de Audio (LameJS) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
-
-<!-- Librería 5: Compresión de Video (FFmpeg.wasm) -->
-<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+  <!-- Librerías de procesamiento -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 </head>
 <body>
   <div class="container">
-    <header class="header-title">
-      <h1>G0rill4</h1>
-      <p>¡Deja que el gorila aplaste tus archivos!</p>
-      <small class="allowed-formats">
-        Formatos soportados: <strong>JPG, PNG, WEBP, PDF, SVG, JSON, CSV, TXT</strong> (Máx. 100 MB)
-      </small>
-    </header>
+    <div class="app-wrapper">
+      
+      <!-- Panel Izquierdo: Título, Descripción e Información -->
+      <aside class="left-panel">
+        <header class="header-title">
+          <h1>G0rill4</h1>
+          <p>¡Deja que el gorila aplaste tus archivos!</p>
+          <small class="allowed-formats">
+            Formatos soportados: <strong>JPG, PNG, WEBP, PDF, MP3, WAV, MP4, WEBM, SVG, JSON, CSV, TXT</strong> (Máx. 100 MB)
+          </small>
+        </header>
+      </aside>
 
-    <!-- Barra de Pestañas -->
-    <nav class="tabs-bar" id="tabsBar">
-      <button class="btn-add-tab" id="addTabBtn" title="Nueva pestaña">+</button>
-    </nav>
+      <!-- Panel Derecho: Pestañas y Zona de Carga/Compresión -->
+      <section class="right-panel">
+        <!-- Barra de Pestañas -->
+        <nav class="tabs-bar" id="tabsBar">
+          <button class="btn-add-tab" id="addTabBtn" title="Nueva pestaña">+</button>
+        </nav>
 
-    <!-- Contenedor Principal dinámico -->
-    <main id="tabContentsContainer"></main>
+        <!-- Contenedor Principal dinámico -->
+        <main id="tabContentsContainer"></main>
+      </section>
+
+    </div>
   </div>
 
-    
   <!-- Footer Sticky Horizontal -->
   <footer class="sticky-footer">
     <span>G0rill4</span>
