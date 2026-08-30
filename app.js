@@ -4,7 +4,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 const MAX_FILE_SIZE_MB = 100;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// --- Web Audio API Synth (Sonido de Aplastar/Crujido) ---
+// --- Web Audio API Synth (Sonido de Aplastar/Crujido y Mascado) ---
 let audioCtx = null;
 
 function getAudioContext() {
@@ -71,6 +71,200 @@ function playSquishSound() {
   }
 }
 
+function playEatSound() {
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+
+    // Sonido sintético de mascado/ñam
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(120, now + 0.15);
+
+    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.15);
+  } catch (e) {
+    console.warn('Audio Context error:', e);
+  }
+}
+
+// --- Clase Motor de Físicas del Banano ---
+class BananaPhysics {
+  constructor(canvasId) {
+    this.canvas = document.getElementById(canvasId);
+    if (!this.canvas) {
+      this.canvas = document.createElement('canvas');
+      this.canvas.id = canvasId;
+      document.body.appendChild(this.canvas);
+    }
+
+    this.ctx = this.canvas.getContext('2d');
+    this.resizeCanvas();
+
+    this.x = 0;
+    this.y = -50;
+    this.vx = 0;
+    this.vy = 0;
+    this.radius = 24;
+    this.gravity = 0.6;
+    this.bounce = -0.55;
+    this.friction = 0.98;
+
+    this.isDragging = false;
+    this.isEaten = true;
+    this.animId = null;
+    this.gorillaEl = null;
+
+    window.addEventListener('resize', () => this.resizeCanvas());
+    this.bindMouseEvents();
+  }
+
+  resizeCanvas() {
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+  }
+
+  spawn(gorillaElement) {
+    this.gorillaEl = gorillaElement;
+    this.x = Math.random() * (this.canvas.width - 120) + 60;
+    this.y = -40;
+    this.vx = (Math.random() - 0.5) * 4;
+    this.vy = 2;
+    this.isEaten = false;
+    this.isDragging = false;
+
+    this.canvas.style.pointerEvents = 'auto';
+    if (!this.animId) this.loop();
+  }
+
+  bindMouseEvents() {
+    const getPos = (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    };
+
+    const startDrag = (e) => {
+      if (this.isEaten) return;
+      const pos = getPos(e);
+      const dist = Math.hypot(pos.x - this.x, pos.y - this.y);
+      if (dist < this.radius + 15) {
+        this.isDragging = true;
+        this.dragOffsetX = pos.x - this.x;
+        this.dragOffsetY = pos.y - this.y;
+      }
+    };
+
+    const moveDrag = (e) => {
+      if (this.isDragging) {
+        const pos = getPos(e);
+        this.vx = (pos.x - this.dragOffsetX - this.x) * 0.3;
+        this.vy = (pos.y - this.dragOffsetY - this.y) * 0.3;
+        this.x = pos.x - this.dragOffsetX;
+        this.y = pos.y - this.dragOffsetY;
+      }
+    };
+
+    const stopDrag = () => {
+      this.isDragging = false;
+    };
+
+    this.canvas.addEventListener('mousedown', startDrag);
+    this.canvas.addEventListener('mousemove', moveDrag);
+    window.addEventListener('mouseup', stopDrag);
+
+    this.canvas.addEventListener('touchstart', startDrag, { passive: true });
+    this.canvas.addEventListener('touchmove', moveDrag, { passive: true });
+    window.addEventListener('touchend', stopDrag);
+  }
+
+  checkGorillaCollision() {
+    if (!this.gorillaEl || this.isEaten) return;
+
+    const rect = this.gorillaEl.getBoundingClientRect();
+    if (
+      this.x > rect.left - 10 &&
+      this.x < rect.right + 10 &&
+      this.y > rect.top - 10 &&
+      this.y < rect.bottom + 10
+    ) {
+      this.isEaten = true;
+      this.triggerGorillaEatEffect();
+    }
+  }
+
+  triggerGorillaEatEffect() {
+    playEatSound();
+    this.gorillaEl.style.transform = 'scale(1.4)';
+    this.gorillaEl.style.transition = 'transform 0.2s ease';
+
+    setTimeout(() => {
+      this.gorillaEl.style.transform = 'scale(1)';
+      this.canvas.style.pointerEvents = 'none';
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }, 400);
+  }
+
+  update() {
+    if (this.isEaten) return;
+
+    if (!this.isDragging) {
+      this.vy += this.gravity;
+      this.vx *= this.friction;
+      this.vy *= this.friction;
+
+      this.x += this.vx;
+      this.y += this.vy;
+
+      const floor = this.canvas.height - this.radius - 10;
+      if (this.y > floor) {
+        this.y = floor;
+        this.vy *= this.bounce;
+      }
+
+      if (this.x < this.radius || this.x > this.canvas.width - this.radius) {
+        this.vx *= -1;
+      }
+    }
+
+    this.checkGorillaCollision();
+  }
+
+  draw() {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    if (!this.isEaten) {
+      this.ctx.font = '36px sans-serif';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText('🍌', this.x, this.y);
+    }
+  }
+
+  loop() {
+    this.update();
+    this.draw();
+    if (!this.isEaten) {
+      this.animId = requestAnimationFrame(() => this.loop());
+    } else {
+      this.animId = null;
+    }
+  }
+}
+
+const bananaSystem = new BananaPhysics('physicsCanvas');
+
+// --- Pestañas y Gestión de Archivos ---
 const tabsBar = document.getElementById('tabsBar');
 const addTabBtn = document.getElementById('addTabBtn');
 const tabContentsContainer = document.getElementById('tabContentsContainer');
@@ -372,6 +566,11 @@ class TabInstance {
       this.downloadLink.classList.remove('hidden');
 
       this.setStatus('✔ Completado', 'completed');
+
+      // Soltar banano con físicas al gorila de la pestaña activa
+      const activeGorilla = this.tabBody.querySelector('.gorilla');
+      bananaSystem.spawn(activeGorilla);
+
     } catch (err) {
       this.setStatus(`✖ ${err.message || 'Error al procesar'}`, 'error');
     } finally {
