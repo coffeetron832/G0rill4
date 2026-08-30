@@ -69,10 +69,10 @@ p {
   color: #666;
 }
 
-/* Panel Derecho (Tarjeta compacta) */
+/* Panel Derecho */
 .right-panel {
-  flex: 1;
-  max-width: 400px;
+  flex: 1.2;
+  max-width: 480px;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -147,10 +147,10 @@ p {
 .box {
   border: 1px solid #ccc;
   border-radius: 0 0 8px 8px;
-  padding: 12px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin-top: -1px;
   background: #fff;
 }
@@ -159,7 +159,7 @@ p {
 .drop-zone {
   border: 2px dashed #bbb;
   border-radius: 8px;
-  padding: 14px 12px;
+  padding: 24px 16px;
   text-align: center;
   background: #fafafa;
   cursor: pointer;
@@ -183,9 +183,9 @@ p {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  height: 120px;
+  height: 150px;
   position: relative;
-  margin: 4px 0;
+  margin: 10px 0;
   overflow: hidden;
 }
 
@@ -236,9 +236,9 @@ p {
 
 @keyframes gorillaSmash {
   0% { transform: translateY(0) scale(1) rotate(0deg); }
-  30% { transform: translateY(-32px) scale(1.15, 0.9) rotate(-4deg); }
+  30% { transform: translateY(-45px) scale(1.15, 0.9) rotate(-4deg); }
   45% { transform: translateY(2px) scale(0.85, 1.25) rotate(2deg); }
-  60% { transform: translateY(-4px) scale(1.05, 0.95); }
+  60% { transform: translateY(-6px) scale(1.05, 0.95); }
   75%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
 }
 
@@ -252,11 +252,11 @@ p {
 button, .btn-link {
   display: block;
   width: 100%;
-  padding: 7px 10px;
+  padding: 10px;
   background: #111;
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
   text-align: center;
@@ -277,7 +277,7 @@ button:disabled { background: #ccc; cursor: not-allowed; }
   font-size: 13px;
   line-height: 1.5;
   border-top: 1px solid #eee;
-  padding-top: 8px;
+  padding-top: 12px;
 }
 
 .status-badge {
@@ -301,7 +301,7 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 }
 
 .metrics-table td {
-  padding: 4px 0;
+  padding: 6px 0;
   border-bottom: 1px dashed #eee;
   vertical-align: middle;
 }
