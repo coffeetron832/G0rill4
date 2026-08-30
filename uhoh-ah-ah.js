@@ -36,7 +36,9 @@ const translations = {
     videoMethod: "Compresión de Video HD",
     videoDesc: "Adapta la resolución máxima a 720p y optimiza los cuadros por segundo para reducir el tamaño manteniendo buena fluidez.",
     textMethod: "Limpieza de Espacios",
-    textDesc: "Elimina espacios en blanco, saltos de línea y tabulaciones innecesarias dentro del archivo sin alterar su contenido."
+    textDesc: "Elimina espacios en blanco, saltos de línea y tabulaciones innecesarias dentro del archivo sin alterar su contenido.",
+    // Tooltip
+    bananaTooltip: "🍌 ¡Arrástrame hacia el gorila!"
   },
   en: {
     tagline: "Let the gorilla crush your files!",
@@ -74,7 +76,9 @@ const translations = {
     videoMethod: "HD Video Compression",
     videoDesc: "Scales max resolution to 720p and optimizes frame settings to shrink size while keeping smooth playback.",
     textMethod: "Whitespace Minification",
-    textDesc: "Strips unnecessary spaces, line breaks, and tabs from the file without affecting actual content."
+    textDesc: "Strips unnecessary spaces, line breaks, and tabs from the file without affecting actual content.",
+    // Tooltip
+    bananaTooltip: "🍌 Drag me to the gorilla!"
   },
   pt: {
     tagline: "Deixe o gorila esmagar seus arquivos!",
@@ -112,7 +116,9 @@ const translations = {
     videoMethod: "Compactação de Vídeo HD",
     videoDesc: "Ajusta a resolução máxima para 720p e otimiza a taxa de quadros para reduzir o tamanho mantendo a fluidez.",
     textMethod: "Limpeza de Espaços",
-    textDesc: "Remove espaços desnecessários, quebras de linha e tabulações do arquivo sem alterar o conteúdo."
+    textDesc: "Remove espaços desnecessários, quebras de linha e tabulações do arquivo sem alterar o conteúdo.",
+    // Tooltip
+    bananaTooltip: "🍌 Arraste-me para o gorila!"
   },
   fr: {
     tagline: "Laissez le gorille écraser vos fichiers !",
@@ -150,7 +156,9 @@ const translations = {
     videoMethod: "Compression Vidéo HD",
     videoDesc: "Ajuste la résolution maximale à 720p et optimise les images par seconde pour réduire le poids.",
     textMethod: "Nettoyage des Espaces",
-    textDesc: "Supprime les espaces inutiles, sauts de ligne et tabulations du fichier sans altérer le contenu."
+    textDesc: "Supprime les espaces inutiles, sauts de ligne et tabulations du fichier sans altérer le contenu.",
+    // Tooltip
+    bananaTooltip: "🍌 Faites-moi glisser vers le gorille !"
   },
   de: {
     tagline: "Lass den Gorilla deine Dateien zerquetschen!",
@@ -188,7 +196,9 @@ const translations = {
     videoMethod: "HD-Videokomprimierung",
     videoDesc: "Skaliert die Auflösung auf maximal 720p und optimiert Bildraten für flüssige Wiedergabe bei geringer Größe.",
     textMethod: "Leerzeichen-Minimierung",
-    textDesc: "Entfernt unnötige Leerzeichen, Zeilenumbrüche und Tabs, ohne den eigentlichen Inhalt zu verändern."
+    textDesc: "Entfernt unnötige Leerzeichen, Zeilenumbrüche und Tabs, ohne den eigentlichen Inhalt zu verändern.",
+    // Tooltip
+    bananaTooltip: "🍌 Zieh mich zum Gorilla!"
   },
   it: {
     tagline: "Lascia che il gorilla schiacci i tuoi file!",
@@ -215,7 +225,7 @@ const translations = {
     defaultTabTitle: "File",
     newTabTitle: "Nuova scheda",
     limitError: "✖ Il file supera il limite di 100 MB",
-    unsupportedError: "Tipo di file non supportato per la compressione diretta.",
+    unsupportedError: "Tipo di file non supportato per la compressione directa.",
     // Metodi
     imgMethod: "Ottimizzazione Visiva",
     imgDesc: "Ridimensiona le immagini, rimuove i metadati ed equilibra la qualità per ridurre lo spazio occupato.",
@@ -226,7 +236,9 @@ const translations = {
     videoMethod: "Compressione Video HD",
     videoDesc: "Riduce la risoluzione massima a 720p e ottimizza i fotogrammi per alleggerire il file mantenendo fluidità.",
     textMethod: "Pulizia degli Spazi",
-    textDesc: "Rimuove spazi vuoti, interruzioni di riga e tabulazioni non necessarie senza alterare il contenuto."
+    textDesc: "Rimuove spazi vuoti, interruzioni di riga e tabulazioni non necessarie senza alterare il contenuto.",
+    // Tooltip
+    bananaTooltip: "🍌 Trascinami verso il gorilla!"
   }
 };
 
@@ -249,7 +261,12 @@ function setLanguage(lang) {
   const addTabBtn = document.getElementById('addTabBtn');
   if (addTabBtn) addTabBtn.title = translations[lang].newTabTitle;
 
-  // 3. Iterar y actualizar TODAS las instancias de pestañas
+  // 3. Actualizar el tooltip del sistema de física de la banana
+  if (typeof bananaSystem !== 'undefined' && typeof bananaSystem.updateLanguage === 'function') {
+    bananaSystem.updateLanguage(lang);
+  }
+
+  // 4. Iterar y actualizar TODAS las instancias de pestañas
   if (typeof tabs !== 'undefined' && Array.isArray(tabs)) {
     tabs.forEach(tab => {
       if (typeof tab.updateLanguage === 'function') {
