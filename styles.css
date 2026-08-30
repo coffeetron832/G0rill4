@@ -429,7 +429,6 @@ button:disabled { background: #ccc; cursor: not-allowed; }
   font-size: 13.5px;
   color: #444;
   background: #f8f9fa;
-  border-left: 3px solid #111;
   padding: 8px 12px;
   border-radius: 0 6px 6px 0;
   line-height: 1.45;
