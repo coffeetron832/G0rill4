@@ -16,10 +16,12 @@ class TabInstance {
     this.previewUrl = null;
     this.downloadUrl = null;
     this.squishInterval = null;
+    this.lastMethodKey = null;
 
     this.renderTabHeader();
     this.renderTabBody();
     this.bindEvents();
+    this.updateLanguage();
   }
 
   renderTabHeader() {
@@ -52,15 +54,15 @@ class TabInstance {
       <button class="compress-btn" disabled>Comprimir</button>
 
       <div class="output">
-        <p>Estado: <span class="status-badge idle">● En espera</span></p>
+        <p><span class="status-label">Estado: </span><span class="status-badge idle">● En espera</span></p>
 
         <table class="metrics-table hidden">
-          <tr><td>Tamaño original:</td><td class="m-orig">-</td></tr>
-          <tr><td>Tamaño final:</td><td class="m-comp">-</td></tr>
-          <tr><td>Espacio ahorrado:</td><td class="m-saved">-</td></tr>
-          <tr><td>Reducción:</td><td class="m-ratio">-</td></tr>
+          <tr><td class="lbl-m-orig">Tamaño original:</td><td class="m-orig">-</td></tr>
+          <tr><td class="lbl-m-comp">Tamaño final:</td><td class="m-comp">-</td></tr>
+          <tr><td class="lbl-m-saved">Espacio ahorrado:</td><td class="m-saved">-</td></tr>
+          <tr><td class="lbl-m-ratio">Reducción:</td><td class="m-ratio">-</td></tr>
           <tr>
-            <td>Método utilizado:</td>
+            <td class="lbl-m-method">Método utilizado:</td>
             <td>
               <span class="tooltip-container" tabindex="0">
                 <span class="m-method">-</span>
@@ -82,8 +84,14 @@ class TabInstance {
     this.crushStage = this.tabBody.querySelector('.crush-stage');
     this.previewContainer = this.tabBody.querySelector('.file-preview-container');
     this.compressBtn = this.tabBody.querySelector('.compress-btn');
+    this.statusLabel = this.tabBody.querySelector('.status-label');
     this.statusBadge = this.tabBody.querySelector('.status-badge');
     this.metricsTable = this.tabBody.querySelector('.metrics-table');
+    this.lblMOrig = this.tabBody.querySelector('.lbl-m-orig');
+    this.lblMComp = this.tabBody.querySelector('.lbl-m-comp');
+    this.lblMSaved = this.tabBody.querySelector('.lbl-m-saved');
+    this.lblMRatio = this.tabBody.querySelector('.lbl-m-ratio');
+    this.lblMMethod = this.tabBody.querySelector('.lbl-m-method');
     this.mOrig = this.tabBody.querySelector('.m-orig');
     this.mComp = this.tabBody.querySelector('.m-comp');
     this.mSaved = this.tabBody.querySelector('.m-saved');
@@ -126,6 +134,58 @@ class TabInstance {
     this.compressBtn.addEventListener('click', () => this.processCompression());
   }
 
+  updateLanguage() {
+    if (typeof translations === 'undefined' || !translations[currentLang]) return;
+    const t = translations[currentLang];
+
+    // Actualizar zona de arrastre si no hay archivo
+    if (!this.selectedFile) {
+      const dropP = this.dropZone.querySelector('p');
+      if (dropP) dropP.innerHTML = t.dropText;
+      this.fileName.textContent = t.noFile;
+    }
+
+    // Actualizar título por defecto de la pestaña
+    if (!this.selectedFile) {
+      const tabNumber = this.defaultTitle.match(/\d+/);
+      const suffix = tabNumber ? ` ${tabNumber[0]}` : '';
+      this.defaultTitle = `${t.defaultTabTitle}${suffix}`;
+      this.tabHeader.querySelector('.tab-title').textContent = this.defaultTitle;
+    }
+
+    // Actualizar botón y etiquetas
+    this.compressBtn.textContent = t.compressBtn;
+    if (this.statusLabel) this.statusLabel.textContent = t.statusLabel;
+
+    // Actualizar estado según la clase activa
+    if (this.statusBadge.classList.contains('idle')) {
+      this.statusBadge.textContent = t.statusIdle;
+    } else if (this.statusBadge.classList.contains('ready')) {
+      this.statusBadge.textContent = t.statusReady;
+    } else if (this.statusBadge.classList.contains('completed')) {
+      this.statusBadge.textContent = t.statusDone;
+    }
+
+    // Actualizar encabezados de la tabla de métricas
+    if (this.lblMOrig) this.lblMOrig.textContent = t.mOrig;
+    if (this.lblMComp) this.lblMComp.textContent = t.mComp;
+    if (this.lblMSaved) this.lblMSaved.textContent = t.mSaved;
+    if (this.lblMRatio) this.lblMRatio.textContent = t.mRatio;
+    if (this.lblMMethod) this.lblMMethod.textContent = t.mMethod;
+
+    // Actualizar método utilizado y descripción si el archivo ya se procesó
+    if (this.lastMethodKey) {
+      this.mMethod.textContent = t[`${this.lastMethodKey}Method`] || '';
+      this.mMethodTooltip.textContent = t[`${this.lastMethodKey}Desc`] || '';
+    }
+
+    // Actualizar texto del enlace de descarga si está visible
+    if (this.selectedFile && !this.downloadLink.classList.contains('hidden')) {
+      const safeName = sanitizeFilename(this.selectedFile.name);
+      this.downloadLink.textContent = `${t.downloadPrefix} ${safeName}`;
+    }
+  }
+
   setStatus(text, type) {
     this.statusBadge.textContent = text;
     this.statusBadge.className = `status-badge ${type}`;
@@ -146,8 +206,11 @@ class TabInstance {
   }
 
   async handleFileSelect(file) {
+    const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
+
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      this.setStatus(`✖ El archivo supera el límite de ${MAX_FILE_SIZE_MB}MB`, 'error');
+      const errText = t.limitError || `✖ El archivo supera el límite de ${MAX_FILE_SIZE_MB}MB`;
+      this.setStatus(errText, 'error');
       return;
     }
 
@@ -160,10 +223,10 @@ class TabInstance {
     this.compressBtn.disabled = false;
     this.downloadLink.classList.add('hidden');
     this.metricsTable.classList.add('hidden');
-    this.setStatus('● Cargando vista previa...', 'ready');
+    this.setStatus(t.statusPreview || '● Cargando vista previa...', 'ready');
 
     await this.updatePreview(file);
-    this.setStatus('● Listo para procesar', 'ready');
+    this.setStatus(t.statusReady || '● Listo para procesar', 'ready');
   }
 
   async updatePreview(file) {
@@ -239,8 +302,10 @@ class TabInstance {
   async processCompression() {
     if (!this.selectedFile) return;
 
+    const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
+
     try {
-      this.setStatus('⏳ Aplastando archivo...', 'processing');
+      this.setStatus(t.statusProcessing || '⏳ Aplastando archivo...', 'processing');
       this.compressBtn.disabled = true;
       this.downloadLink.classList.add('hidden');
       this.metricsTable.classList.add('hidden');
@@ -248,8 +313,7 @@ class TabInstance {
       this.startSmashAnimation();
 
       let compressedBlob = null;
-      let methodUsed = '';
-      let methodDescription = '';
+      let methodKey = '';
       const fileType = this.selectedFile.type;
       const fileNameLower = this.selectedFile.name.toLowerCase();
 
@@ -271,25 +335,21 @@ class TabInstance {
             },
           });
         });
-        methodUsed = 'Optimización Visual';
-        methodDescription = 'Reajusta las dimensiones de la imagen, elimina datos no visibles (como la cámara o ubicación) y equilibra la calidad para reducir peso sin perder detalle.';
+        methodKey = 'img';
       } else if (fileType === 'application/pdf' || fileNameLower.endsWith('.pdf')) {
         const arrayBuffer = await this.selectedFile.arrayBuffer();
         const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
         const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
         compressedBlob = new Blob([pdfBytes], { type: 'application/pdf' });
-        methodUsed = 'Optimización de Estructura';
-        methodDescription = 'Reorganiza el contenido interno del PDF y elimina datos duplicados e invisibles para que ocupe menos espacio manteniendo las páginas intactas.';
+        methodKey = 'pdf';
       } else if (fileType.startsWith('audio/') || fileNameLower.endsWith('.mp3') || fileNameLower.endsWith('.wav') || fileNameLower.endsWith('.ogg')) {
-        this.setStatus('⏳ Codificando audio MP3...', 'processing');
+        this.setStatus(t.statusEncodingAudio || '⏳ Codificando audio MP3...', 'processing');
         compressedBlob = await compressAudioFile(this.selectedFile, 128);
-        methodUsed = 'Compresión de Audio MP3';
-        methodDescription = 'Ajusta la transmisión de datos del sonido a un nivel equilibrado (128 kbps), reduciendo significativamente el peso sin afectar la audición habitual.';
+        methodKey = 'audio';
       } else if (fileType.startsWith('video/') || fileNameLower.endsWith('.mp4') || fileNameLower.endsWith('.webm')) {
-        this.setStatus('⏳ Re-codificando video (FFmpeg)...', 'processing');
+        this.setStatus(t.statusEncodingVideo || '⏳ Re-codificando video (FFmpeg)...', 'processing');
         compressedBlob = await compressVideoFile(this.selectedFile);
-        methodUsed = 'Compresión de Video HD';
-        methodDescription = 'Adapta la resolución máxima a 720p y optimiza los cuadros por segundo para reducir el tamaño manteniendo una buena fluidez.';
+        methodKey = 'video';
       } else if (
         fileType.startsWith('text/') || fileNameLower.endsWith('.json') ||
         fileNameLower.endsWith('.csv') || fileNameLower.endsWith('.svg')
@@ -297,11 +357,12 @@ class TabInstance {
         const text = await this.selectedFile.text();
         const minifiedText = text.replace(/\s+/g, ' ').trim();
         compressedBlob = new Blob([minifiedText], { type: fileType || 'text/plain' });
-        methodUsed = 'Limpieza de Espacios';
-        methodDescription = 'Elimina espacios en blanco, saltos de línea y tabulaciones innecesarias dentro del archivo sin alterar en nada su contenido o datos.';
+        methodKey = 'text';
       } else {
-        throw new Error('Tipo de archivo no soportado para compresión directa.');
+        throw new Error(t.unsupportedError || 'Tipo de archivo no soportado para compresión directa.');
       }
+
+      this.lastMethodKey = methodKey;
 
       const originalSize = this.selectedFile.size;
       const compressedSize = compressedBlob.size;
@@ -314,20 +375,21 @@ class TabInstance {
       this.mComp.textContent = formatBytes(compressedSize);
       this.mSaved.textContent = savedBytes > 0 ? formatBytes(savedBytes) : '0 B';
       this.mRatio.textContent = savedBytes > 0 ? `-${ratio}%` : '0%';
-      this.mMethod.textContent = methodUsed;
-      this.mMethodTooltip.textContent = methodDescription;
+      this.mMethod.textContent = t[`${methodKey}Method`] || '';
+      this.mMethodTooltip.textContent = t[`${methodKey}Desc`] || '';
       this.metricsTable.classList.remove('hidden');
 
       this.revokeDownloadUrl();
       this.downloadUrl = URL.createObjectURL(compressedBlob);
 
       const safeName = sanitizeFilename(this.selectedFile.name);
+      const downloadPrefix = t.downloadPrefix || 'Descargar';
       this.downloadLink.href = this.downloadUrl;
       this.downloadLink.download = safeName;
-      this.downloadLink.textContent = `Descargar ${safeName}`;
+      this.downloadLink.textContent = `${downloadPrefix} ${safeName}`;
       this.downloadLink.classList.remove('hidden');
 
-      this.setStatus('✔ Completado', 'completed');
+      this.setStatus(t.statusDone || '✔ Completado', 'completed');
 
       const activeGorilla = this.tabBody.querySelector('.gorilla');
       bananaSystem.spawn(activeGorilla);
@@ -341,18 +403,20 @@ class TabInstance {
   }
 
   reset() {
+    const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
     this.stopSmashAnimation();
     this.revokePreviewUrl();
     this.revokeDownloadUrl();
     this.selectedFile = null;
+    this.lastMethodKey = null;
     this.fileInput.value = '';
-    this.fileName.textContent = 'Ningún archivo seleccionado';
+    this.fileName.textContent = t.noFile || 'Ningún archivo seleccionado';
     this.tabHeader.querySelector('.tab-title').textContent = this.defaultTitle;
     this.previewContainer.innerHTML = '<span class="file-icon">📄</span>';
     this.compressBtn.disabled = true;
     this.downloadLink.classList.add('hidden');
     this.metricsTable.classList.add('hidden');
-    this.setStatus('● En espera', 'idle');
+    this.setStatus(t.statusIdle || '● En espera', 'idle');
   }
 
   destroy() {
@@ -367,8 +431,10 @@ class TabInstance {
 // --- Funciones de navegación de Pestañas ---
 function createTab() {
   tabCounter++;
+  const t = typeof translations !== 'undefined' && translations[currentLang] ? translations[currentLang] : {};
+  const baseTitle = t.defaultTabTitle || 'Archivo';
   const id = 'tab-' + Date.now();
-  const newTab = new TabInstance(id, `Archivo ${tabCounter}`);
+  const newTab = new TabInstance(id, `${baseTitle} ${tabCounter}`);
   tabs.push(newTab);
   activateTab(id);
 }
