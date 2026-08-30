@@ -87,7 +87,7 @@ function setLanguage(lang) {
   currentLang = lang;
   document.documentElement.lang = lang;
 
-  // Actualizar textos estáticos en DOM
+  // 1. Actualizar elementos estáticos etiquetados con data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (translations[lang][key]) {
@@ -95,24 +95,30 @@ function setLanguage(lang) {
     }
   });
 
-  // Actualizar tooltip/atributos estáticos
+  // 2. Actualizar atributos explícitos del DOM fuera de las pestañas
   const addTabBtn = document.getElementById('addTabBtn');
   if (addTabBtn) addTabBtn.title = translations[lang].newTabTitle;
 
-  // Refrescar interfaz de cada pestaña activa
+  // 3. Iterar y actualizar TODAS las instancias de pestañas
   if (typeof tabs !== 'undefined' && Array.isArray(tabs)) {
     tabs.forEach(tab => {
-      if (tab.updateLanguage) tab.updateLanguage();
+      if (typeof tab.updateLanguage === 'function') {
+        tab.updateLanguage();
+      }
     });
   }
 }
 
-// Event listener para el select de idioma
+// Event Listeners e Inicialización
 document.addEventListener('DOMContentLoaded', () => {
   const langSelect = document.getElementById('langSelect');
   if (langSelect) {
+    langSelect.value = currentLang;
     langSelect.addEventListener('change', (e) => {
       setLanguage(e.target.value);
     });
   }
+  
+  // Sincronizar idioma inicial al cargar la página
+  setLanguage(currentLang);
 });
