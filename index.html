@@ -38,12 +38,12 @@
 <body>
 
   <div class="lang-selector-container">
-          <label for="langSelect" data-i18n="langLabel">🌐 Idioma / Language:</label>
-          <select id="langSelect" class="lang-select">
-            <option value="es" selected>Español</option>
-            <option value="en">English</option>
-          </select>
-        </div>
+    <label for="langSelect" data-i18n="langLabel">🌐 Idioma / Language:</label>
+    <select id="langSelect" class="lang-select">
+      <option value="es" selected>Español</option>
+      <option value="en">English</option>
+    </select>
+  </div>
   
   <div class="container">
     <div class="app-wrapper">
@@ -52,13 +52,13 @@
       <aside class="left-panel">
         <header class="header-title">
           <h1>G0rill4</h1>
-          <p>¡Deja que el gorila aplaste tus archivos!</p>
-          <small class="allowed-formats">
+          <p data-i18n="tagline">¡Deja que el gorila aplaste tus archivos!</p>
+          <small class="allowed-formats" data-i18n="formats">
             Formatos soportados: <strong>JPG, PNG, WEBP, PDF, MP3, WAV, MP4, WEBM, SVG, JSON, CSV, TXT</strong> (Máx. 100 MB)
           </small>
-          <p class="tabs-guide-text">
-      💡 Puedes abrir varias pestañas usando el botón <strong>+</strong> para procesar diferentes archivos al mismo tiempo.
-      </p>
+          <p class="tabs-guide-text" data-i18n="tabsGuide">
+            💡 Puedes abrir varias pestañas usando el botón <strong>+</strong> para procesar diferentes archivos al mismo tiempo.
+          </p>
         </header>
       </aside>
 
@@ -84,7 +84,7 @@
     <span class="dot-separator">|</span>
     <span>&copy; 2026 jahp.</span>
     <span class="dot-separator">|</span>
-    <span>Todos los derechos reservados.</span>
+    <span data-i18n="rights">Todos los derechos reservados.</span>
   </footer>
 
   <canvas id="physicsCanvas"></canvas>
