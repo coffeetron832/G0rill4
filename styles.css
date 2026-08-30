@@ -361,3 +361,10 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 .sticky-footer .dot-separator {
   color: #ccc;
 }
+
+.allowed-formats {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
