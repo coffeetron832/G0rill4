@@ -8,35 +8,74 @@
 body {
   background: #fff;
   color: #111;
-  padding: 40px 20px 60px 20px;
+  padding: 20px 20px 60px 20px;
   display: flex;
   justify-content: center;
+  align-items: center;
   min-height: 100vh;
   position: relative;
 }
 
+/* Layout Principal de 2 Columnas Centrado */
 .container {
   width: 100%;
-  max-width: 460px;
+  max-width: 1080px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 50px;
+}
+
+/* Panel Izquierdo */
+.left-panel {
+  flex: 1;
+  max-width: 440px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  justify-content: center;
 }
 
 .header-title {
-  text-align: center;
+  text-align: left;
 }
 
 h1 {
   font-family: 'Finger Paint', cursive, sans-serif;
   font-size: 65px;
   font-weight: 400;
-  margin-bottom: 4px;
+  line-height: 1.1;
+  margin-bottom: 8px;
 }
 
 p {
-  font-size: 14px;
+  font-size: 15px;
   color: #555;
+  line-height: 1.4;
+}
+
+.allowed-formats {
+  display: block;
+  margin-top: 14px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #666;
+}
+
+/* Panel Derecho */
+.right-panel {
+  flex: 1.2;
+  max-width: 480px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* System Tabs UI */
@@ -112,7 +151,8 @@ p {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: -17px;
+  margin-top: -1px;
+  background: #fff;
 }
 
 /* Área Drag and Drop */
@@ -126,7 +166,8 @@ p {
   transition: background 0.2s, border-color 0.2s;
 }
 
-.drop-zone:hover, .drop-zone.dragover {
+.drop-zone:hover, 
+.drop-zone.dragover {
   background: #f0f0f0;
   border-color: #111;
 }
@@ -173,7 +214,7 @@ p {
   max-width: 90px;
   object-fit: contain;
   border-radius: 4px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
   border: 1px solid #ddd;
   background: #fff;
 }
@@ -313,7 +354,7 @@ button:disabled { background: #ccc; cursor: not-allowed; }
   font-size: 11px;
   font-weight: normal;
   line-height: 1.35;
-  box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
   transition: opacity 0.2s ease, visibility 0.2s ease;
   pointer-events: none;
 }
@@ -336,7 +377,7 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 
 .hidden { display: none !important; }
 
-/* Sticky Footer horizontal */
+/* Sticky Footer Horizontal */
 .sticky-footer {
   position: fixed;
   bottom: 0;
@@ -362,19 +403,38 @@ button:disabled { background: #ccc; cursor: not-allowed; }
   color: #ccc;
 }
 
-.allowed-formats {
-  display: block;
-  margin-top: 6px;
-  font-size: 0.85rem;
-  opacity: 0.8;
-}
-
 #physicsCanvas {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  pointer-events: none; /* Deja pasar clics excepto cuando se detecte interacción en el banano */
+  pointer-events: none;
   z-index: 9999;
+}
+
+/* Responsividad para pantallas pequeñas */
+@media (max-width: 860px) {
+  body {
+    align-items: flex-start;
+    padding-top: 30px;
+  }
+
+  .app-wrapper {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .left-panel {
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .header-title {
+    text-align: center;
+  }
+
+  .right-panel {
+    max-width: 100%;
+  }
 }
