@@ -1,4 +1,6 @@
-# 🦍 G0rill4
+<div align="center">
+  <img src="nest.png" alt="Banner G0rill4" width="950px">
+</div>
 
 Let the gorilla shred your files quickly, privately, and hassle-free—right in your browser!
 
