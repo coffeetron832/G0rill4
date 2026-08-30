@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="Logo.png" alt="Logo G0rill4" width="950px">
+  <img src="logo.png" alt="Logo G0rill4" width="620px">
 </div>
 
 It is a lightweight web tool to compress your files without having to upload them to any external server. 
