@@ -413,6 +413,26 @@ button:disabled { background: #ccc; cursor: not-allowed; }
   z-index: 9999;
 }
 
+.tabs-guide-text {
+  margin-top: 12px;
+  font-size: 13.5px;
+  color: #444;
+  background: #f8f9fa;
+  border-left: 3px solid #111;
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  line-height: 1.45;
+}
+
+/* Ajuste responsive para que en móviles el borde se aplique arriba o se centre adecuadamente */
+@media (max-width: 860px) {
+  .tabs-guide-text {
+    text-align: left;
+    margin: 12px auto 0 auto;
+    max-width: 480px;
+  }
+}
+
 /* Responsividad para pantallas pequeñas */
 @media (max-width: 860px) {
   body {
