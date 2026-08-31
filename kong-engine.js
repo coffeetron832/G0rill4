@@ -523,6 +523,12 @@ class KongEngine {
     this.fileListContainer = document.getElementById('fileList');
     this.gorillaIcon = document.getElementById('gorillaIcon');
 
+    // Referencias a los textos del Dropzone para actualizar la UI según el modo
+    if (this.dropzone) {
+      this.dropzoneTitle = this.dropzone.querySelector('[data-i18n="dragDropTitle"]') || this.dropzone.querySelector('h3');
+      this.dropzoneSubtitle = this.dropzone.querySelector('[data-i18n="dragDropSubtitle"]') || this.dropzone.querySelector('p');
+    }
+
     // Vistas y Contenedores
     this.initialView = document.getElementById('initialView');
     this.processView = document.getElementById('processView');
@@ -567,18 +573,18 @@ class KongEngine {
       });
     }
 
-    // Eventos para cambiar de modo
+    // Eventos para cambiar de modo / pestaña
     if (this.switchToZipBtn) {
       this.switchToZipBtn.addEventListener('click', () => {
         this.isZipMode = true;
-        this.updateModeUI();
+        this.resetUI();
       });
     }
 
     if (this.switchToCompressBtn) {
       this.switchToCompressBtn.addEventListener('click', () => {
         this.isZipMode = false;
-        this.updateModeUI();
+        this.resetUI();
       });
     }
 
@@ -596,6 +602,7 @@ class KongEngine {
   }
 
   updateModeUI() {
+    // 1. Alternar selección múltiple en el input
     if (this.fileInput) {
       if (this.isZipMode) {
         this.fileInput.setAttribute('multiple', 'true');
@@ -604,6 +611,7 @@ class KongEngine {
       }
     }
 
+    // 2. Visibilidad de los mensajes del switcher
     if (this.switchQuestionZip && this.switchQuestionCompress) {
       if (this.isZipMode) {
         this.switchQuestionZip.classList.add('hidden');
@@ -612,6 +620,25 @@ class KongEngine {
         this.switchQuestionZip.classList.remove('hidden');
         this.switchQuestionCompress.classList.add('hidden');
       }
+    }
+
+    // 3. Modificación de la interfaz visual del Dropzone y Botones según el modo
+    if (this.dropzone) {
+      if (this.isZipMode) {
+        this.dropzone.classList.add('mode-zip');
+        this.dropzone.classList.remove('mode-compress');
+        if (this.dropzoneTitle) this.dropzoneTitle.textContent = 'Arrastra varios archivos para armar un .ZIP';
+        if (this.dropzoneSubtitle) this.dropzoneSubtitle.textContent = 'Puedes empaquetar múltiples elementos en un solo contenedor comprimido';
+      } else {
+        this.dropzone.classList.add('mode-compress');
+        this.dropzone.classList.remove('mode-zip');
+        if (this.dropzoneTitle) this.dropzoneTitle.textContent = 'Arrastra tu archivo aquí';
+        if (this.dropzoneSubtitle) this.dropzoneSubtitle.textContent = 'Optimiza y reduce el peso de un archivo individual';
+      }
+    }
+
+    if (this.btnCompress) {
+      this.btnCompress.textContent = this.isZipMode ? 'Empaquetar en .ZIP' : 'Reducir peso de archivo';
     }
   }
 
@@ -696,27 +723,31 @@ class KongEngine {
       originalTotalSize += file.size;
 
       const progress = Math.round(((i) / totalFiles) * 70);
-      this.updateProgress(progress, `Procesando (${i + 1}/${totalFiles}): ${file.name}`);
+      this.updateProgress(progress, `${this.isZipMode ? 'Agregando' : 'Procesando'} (${i + 1}/${totalFiles}): ${file.name}`);
 
       let processedBlob = file;
       const sanitizedName = sanitizeFilename(file.name);
 
-      try {
-        if (file.type.startsWith('image/')) {
-          processedBlob = await compressImageFile(file);
-        } else if (file.type.startsWith('audio/')) {
-          processedBlob = await compressAudioFile(file);
-        } else if (file.type.startsWith('video/')) {
-          processedBlob = await compressVideoFile(file);
+      // Si se está en modo compresión individual, aplica optimizaciones pesadas;
+      // en modo ZIP sólo empaqueta los binarios originales para mayor eficiencia.
+      if (!this.isZipMode) {
+        try {
+          if (file.type.startsWith('image/')) {
+            processedBlob = await compressImageFile(file);
+          } else if (file.type.startsWith('audio/')) {
+            processedBlob = await compressAudioFile(file);
+          } else if (file.type.startsWith('video/')) {
+            processedBlob = await compressVideoFile(file);
+          }
+        } catch (err) {
+          console.warn(`Fallback al archivo original para ${file.name}:`, err);
         }
-      } catch (err) {
-        console.warn(`Fallback al archivo original para ${file.name}:`, err);
       }
 
       zip.file(sanitizedName, processedBlob);
     }
 
-    this.updateProgress(75, 'Generando paquete .ZIP...');
+    this.updateProgress(75, 'Generando archivo .ZIP...');
 
     try {
       this.generatedZipBlob = await zip.generateAsync({ type: 'blob' }, (metadata) => {
@@ -730,9 +761,10 @@ class KongEngine {
 
       if (this.zipStats) {
         this.zipStats.innerHTML = `
-          <p><strong>Tamaño original:</strong> ${formatBytes(originalTotalSize)}</p>
-          <p><strong>Tamaño final ZIP:</strong> ${formatBytes(compressedSize)}</p>
-          <p><strong>Ahorro total:</strong> ${formatBytes(savings)} (${savingsPercent}%)</p>
+          <p><strong>Archivos agregados:</strong> ${totalFiles}</p>
+          <p><strong>Tamaño total acumulado:</strong> ${formatBytes(originalTotalSize)}</p>
+          <p><strong>Tamaño del .ZIP final:</strong> ${formatBytes(compressedSize)}</p>
+          ${!this.isZipMode ? `<p><strong>Ahorro obtenido:</strong> ${formatBytes(savings)} (${savingsPercent}%)</p>` : ''}
         `;
       }
 
@@ -757,7 +789,7 @@ class KongEngine {
 
     const link = document.createElement('a');
     link.href = URL.createObjectURL(this.generatedZipBlob);
-    link.download = `kong_compressed_${Date.now()}.zip`;
+    link.download = this.isZipMode ? `kong_bundle_${Date.now()}.zip` : `kong_compressed_${Date.now()}.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
