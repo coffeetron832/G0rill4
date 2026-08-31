@@ -206,12 +206,14 @@ class TabInstance {
       this.zipPackageName = val.length > 0 ? val : 'paquete.zip';
     });
 
-    // Eventos delegados dentro de la lista de archivos ZIP (renombrar/eliminar)
+    // Eventos delegados dentro de la lista de archivos ZIP (renombrar conservando la extensión/eliminar)
     this.zipFileList.addEventListener('input', (e) => {
       if (e.target.classList.contains('zip-item-rename')) {
         const index = parseInt(e.target.getAttribute('data-index'), 10);
+        const ext = e.target.getAttribute('data-ext') || '';
+        
         if (this.selectedFiles[index]) {
-          this.selectedFiles[index].customName = e.target.value;
+          this.selectedFiles[index].customName = e.target.value + ext;
         }
       }
     });
@@ -348,7 +350,7 @@ class TabInstance {
     this.setStatus(t.statusReady || '● Listo para empaquetar', 'ready');
   }
 
-  renderZipFileList() {
+  async renderZipFileList() {
     this.zipFileList.innerHTML = '';
     let totalSize = 0;
 
@@ -361,21 +363,93 @@ class TabInstance {
 
     this.selectedFiles.forEach((item, idx) => {
       totalSize += item.file.size;
+
+      // Extraer nombre base y extensión
+      const fullCustomName = item.customName || item.file.name;
+      const lastDotIndex = fullCustomName.lastIndexOf('.');
+      let baseName = fullCustomName;
+      let ext = '';
+
+      if (lastDotIndex > 0) {
+        baseName = fullCustomName.substring(0, lastDotIndex);
+        ext = fullCustomName.substring(lastDotIndex);
+      }
+
       const row = document.createElement('div');
       row.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 6px;';
-      row.innerHTML = `
-        <span style="font-size: 16px;">${getFileEmoji(item.file)}</span>
-        <input type="text" class="zip-item-rename" data-index="${idx}" value="${escapeHTML(item.customName)}" style="flex: 1; padding: 4px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;">
+      
+      // Contenedor de vista previa
+      const previewThumb = document.createElement('div');
+      previewThumb.style.cssText = 'width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; background: #eee; border: 1px solid #ccc; font-size: 14px;';
+      row.appendChild(previewThumb);
+
+      // Input de edición (solo el nombre sin la extensión)
+      const inputGroup = document.createElement('div');
+      inputGroup.style.cssText = 'flex: 1; display: flex; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 0 4px; overflow: hidden;';
+      inputGroup.innerHTML = `
+        <input type="text" class="zip-item-rename" data-index="${idx}" data-ext="${escapeHTML(ext)}" value="${escapeHTML(baseName)}" style="flex: 1; border: none; outline: none; padding: 4px; font-size: 12px; background: transparent;">
+        <span style="font-size: 12px; color: #777; font-weight: bold; padding-right: 4px; user-select: none;">${escapeHTML(ext)}</span>
+      `;
+      row.appendChild(inputGroup);
+
+      // Tamaño y acción de eliminar
+      const sizeAndAction = document.createElement('div');
+      sizeAndAction.style.cssText = 'display: flex; align-items: center; gap: 6px;';
+      sizeAndAction.innerHTML = `
         <span style="font-size: 11px; color: #666; white-space: nowrap;">${formatBytes(item.file.size)}</span>
         <button type="button" class="btn-remove-zip-item" data-index="${idx}" style="background: none; border: none; color: #ff4d4d; cursor: pointer; font-weight: bold; font-size: 14px;">✕</button>
       `;
+      row.appendChild(sizeAndAction);
+
       this.zipFileList.appendChild(row);
+
+      // Renderizado dinámico de la miniatura de vista previa
+      this.generateThumbnail(item.file, previewThumb);
     });
 
     this.fileName.textContent = `${this.selectedFiles.length} archivos seleccionados (${formatBytes(totalSize)})`;
     this.tabHeader.querySelector('.tab-title').textContent = `ZIP (${this.selectedFiles.length})`;
     this.previewContainer.innerHTML = `<span class="file-icon">📦</span>`;
     this.zipManagementContainer.classList.remove('hidden');
+  }
+
+  async generateThumbnail(file, container) {
+    const type = file.type;
+    const name = file.name.toLowerCase();
+
+    if (type.startsWith('image/')) {
+      const img = document.createElement('img');
+      const thumbUrl = URL.createObjectURL(file);
+      img.src = thumbUrl;
+      img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+      img.onload = () => URL.revokeObjectURL(thumbUrl);
+      container.appendChild(img);
+    } else if (type === 'application/pdf' || name.endsWith('.pdf')) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const page = await pdf.getPage(1);
+
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        const viewport = page.getViewport({ scale: 0.1 });
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        canvas.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain;';
+
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+        container.appendChild(canvas);
+      } catch (err) {
+        container.innerHTML = '📄';
+      }
+    } else if (type.startsWith('video/') || name.endsWith('.mp4') || name.endsWith('.webm')) {
+      container.innerHTML = '🎬';
+    } else if (type.startsWith('audio/') || name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.ogg')) {
+      container.innerHTML = '🎵';
+    } else {
+      container.innerHTML = '📄';
+    }
   }
 
   removeZipFileItem(index) {
