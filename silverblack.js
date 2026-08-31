@@ -13,6 +13,8 @@ class TabInstance {
     this.defaultTitle = title;
     this.title = title;
     this.selectedFile = null;
+    this.selectedFiles = []; // Para empaquetado ZIP
+    this.isZipMode = false;   // Estado del modo en esta pestaña
     this.previewUrl = null;
     this.downloadUrl = null;
     this.squishInterval = null;
@@ -38,9 +40,22 @@ class TabInstance {
     this.tabBody = document.createElement('div');
     this.tabBody.className = 'box hidden';
     this.tabBody.innerHTML = `
+      <!-- Selector de modo embebido en cada pestaña -->
+      <div class="mode-switch-container">
+        <div class="switch-option switch-question-zip">
+          <span data-i18n="askZipMode">¿Buscas empaquetar varios archivos en un archivo comprimido?</span>
+          <button type="button" class="btn-mode-link btn-to-zip" data-i18n="btnToZip">Armar un archivo .ZIP</button>
+        </div>
+
+        <div class="switch-option switch-question-compress hidden">
+          <span data-i18n="askCompressMode">¿Quieres reducir el tamaño o peso de un archivo individual?</span>
+          <button type="button" class="btn-mode-link btn-to-compress" data-i18n="btnToCompress">Reducir peso de archivo</button>
+        </div>
+      </div>
+
       <input type="file" class="file-input" hidden>
       <div class="drop-zone">
-        <p><strong>Arrastra un archivo aquí</strong><br>o haz clic para seleccionar</p>
+        <p class="drop-text"><strong>Arrastra un archivo aquí</strong><br>o haz clic para seleccionar</p>
       </div>
       <span class="file-name">Ningún archivo seleccionado</span>
 
@@ -78,8 +93,12 @@ class TabInstance {
     `;
     tabContentsContainer.appendChild(this.tabBody);
 
+    // Mapeo de elementos DOM de la pestaña
+    this.switchZipBox = this.tabBody.querySelector('.switch-question-zip');
+    this.switchCompressBox = this.tabBody.querySelector('.switch-question-compress');
     this.fileInput = this.tabBody.querySelector('.file-input');
     this.dropZone = this.tabBody.querySelector('.drop-zone');
+    this.dropText = this.tabBody.querySelector('.drop-text');
     this.fileName = this.tabBody.querySelector('.file-name');
     this.crushStage = this.tabBody.querySelector('.crush-stage');
     this.previewContainer = this.tabBody.querySelector('.file-preview-container');
@@ -102,6 +121,14 @@ class TabInstance {
   }
 
   bindEvents() {
+    // Cambio de modo desde las preguntas dentro de la pestaña
+    if (this.switchZipBox) {
+      this.switchZipBox.addEventListener('click', () => this.setMode(true));
+    }
+    if (this.switchCompressBox) {
+      this.switchCompressBox.addEventListener('click', () => this.setMode(false));
+    }
+
     this.tabHeader.addEventListener('click', (e) => {
       if (e.target.classList.contains('tab-close')) {
         closeTab(this.id);
@@ -124,40 +151,85 @@ class TabInstance {
     this.dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       this.dropZone.classList.remove('dragover');
-      if (e.dataTransfer.files.length) this.handleFileSelect(e.dataTransfer.files[0]);
+      if (e.dataTransfer.files.length) {
+        if (this.isZipMode) {
+          this.handleMultipleFilesSelect(e.dataTransfer.files);
+        } else {
+          this.handleFileSelect(e.dataTransfer.files[0]);
+        }
+      }
     });
 
     this.fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length) this.handleFileSelect(e.target.files[0]);
+      if (e.target.files.length) {
+        if (this.isZipMode) {
+          this.handleMultipleFilesSelect(e.target.files);
+        } else {
+          this.handleFileSelect(e.target.files[0]);
+        }
+      }
     });
 
     this.compressBtn.addEventListener('click', () => this.processCompression());
+  }
+
+  setMode(isZip) {
+    this.isZipMode = isZip;
+    this.reset();
+
+    if (this.isZipMode) {
+      this.switchZipBox.classList.add('hidden');
+      this.switchCompressBox.classList.remove('hidden');
+      this.fileInput.setAttribute('multiple', 'true');
+    } else {
+      this.switchZipBox.classList.remove('hidden');
+      this.switchCompressBox.classList.add('hidden');
+      this.fileInput.removeAttribute('multiple');
+    }
+    this.updateLanguage();
   }
 
   updateLanguage() {
     if (typeof translations === 'undefined' || !translations[currentLang]) return;
     const t = translations[currentLang];
 
-    // Actualizar zona de arrastre si no hay archivo
-    if (!this.selectedFile) {
-      const dropP = this.dropZone.querySelector('p');
-      if (dropP) dropP.innerHTML = t.dropText;
-      this.fileName.textContent = t.noFile;
+    // Actualizar preguntas de cambio de modo
+    const askZip = this.tabBody.querySelector('[data-i18n="askZipMode"]');
+    const btnZip = this.tabBody.querySelector('[data-i18n="btnToZip"]');
+    const askComp = this.tabBody.querySelector('[data-i18n="askCompressMode"]');
+    const btnComp = this.tabBody.querySelector('[data-i18n="btnToCompress"]');
+
+    if (askZip && t.askZipMode) askZip.textContent = t.askZipMode;
+    if (btnZip && t.btnToZip) btnZip.textContent = t.btnToZip;
+    if (askComp && t.askCompressMode) askComp.textContent = t.askCompressMode;
+    if (btnComp && t.btnToCompress) btnComp.textContent = t.btnToCompress;
+
+    // Actualizar textos según el modo activo
+    if (this.isZipMode) {
+      if (!this.selectedFiles.length) {
+        this.dropText.innerHTML = t.dropTextZip || '<strong>Arrastra tus archivos aquí</strong><br>para armar un paquete .ZIP';
+        this.fileName.textContent = t.noFile || 'Ningún archivo seleccionado';
+      }
+      this.compressBtn.textContent = t.createZipBtn || 'Crear paquete .ZIP';
+    } else {
+      if (!this.selectedFile) {
+        this.dropText.innerHTML = t.dropText || '<strong>Arrastra un archivo aquí</strong><br>o haz clic para seleccionar';
+        this.fileName.textContent = t.noFile || 'Ningún archivo seleccionado';
+      }
+      this.compressBtn.textContent = t.compressBtn || 'Comprimir';
     }
 
-    // Actualizar título por defecto de la pestaña
-    if (!this.selectedFile) {
+    // Título de pestaña por defecto
+    if (!this.selectedFile && !this.selectedFiles.length) {
       const tabNumber = this.defaultTitle.match(/\d+/);
       const suffix = tabNumber ? ` ${tabNumber[0]}` : '';
-      this.defaultTitle = `${t.defaultTabTitle}${suffix}`;
+      this.defaultTitle = `${t.defaultTabTitle || 'Archivo'}${suffix}`;
       this.tabHeader.querySelector('.tab-title').textContent = this.defaultTitle;
     }
 
-    // Actualizar botón y etiquetas
-    this.compressBtn.textContent = t.compressBtn;
     if (this.statusLabel) this.statusLabel.textContent = t.statusLabel;
 
-    // Actualizar estado según la clase activa
+    // Estado según insignia activa
     if (this.statusBadge.classList.contains('idle')) {
       this.statusBadge.textContent = t.statusIdle;
     } else if (this.statusBadge.classList.contains('ready')) {
@@ -166,22 +238,22 @@ class TabInstance {
       this.statusBadge.textContent = t.statusDone;
     }
 
-    // Actualizar encabezados de la tabla de métricas
+    // Encabezados de métricas
     if (this.lblMOrig) this.lblMOrig.textContent = t.mOrig;
     if (this.lblMComp) this.lblMComp.textContent = t.mComp;
     if (this.lblMSaved) this.lblMSaved.textContent = t.mSaved;
     if (this.lblMRatio) this.lblMRatio.textContent = t.mRatio;
     if (this.lblMMethod) this.lblMMethod.textContent = t.mMethod;
 
-    // Actualizar método utilizado y descripción si el archivo ya se procesó
     if (this.lastMethodKey) {
       this.mMethod.textContent = t[`${this.lastMethodKey}Method`] || '';
       this.mMethodTooltip.textContent = t[`${this.lastMethodKey}Desc`] || '';
     }
 
-    // Actualizar texto del enlace de descarga si está visible
-    if (this.selectedFile && !this.downloadLink.classList.contains('hidden')) {
-      const safeName = sanitizeFilename(this.selectedFile.name);
+    // Enlace de descarga
+    if (!this.downloadLink.classList.contains('hidden')) {
+      const name = this.isZipMode ? 'paquete.zip' : (this.selectedFile ? this.selectedFile.name : '');
+      const safeName = sanitizeFilename(name);
       this.downloadLink.textContent = `${t.downloadPrefix} ${safeName}`;
     }
   }
@@ -227,6 +299,31 @@ class TabInstance {
 
     await this.updatePreview(file);
     this.setStatus(t.statusReady || '● Listo para procesar', 'ready');
+  }
+
+  handleMultipleFilesSelect(fileList) {
+    const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
+    const files = Array.from(fileList);
+    let totalSize = 0;
+
+    for (const file of files) {
+      totalSize += file.size;
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        const errText = t.limitError || `✖ Un archivo supera el límite de ${MAX_FILE_SIZE_MB}MB`;
+        this.setStatus(errText, 'error');
+        return;
+      }
+    }
+
+    this.selectedFiles = files;
+    this.fileName.textContent = `${files.length} archivos seleccionados (${formatBytes(totalSize)})`;
+    this.tabHeader.querySelector('.tab-title').textContent = `ZIP (${files.length})`;
+
+    this.previewContainer.innerHTML = `<span class="file-icon">📦</span>`;
+    this.compressBtn.disabled = false;
+    this.downloadLink.classList.add('hidden');
+    this.metricsTable.classList.add('hidden');
+    this.setStatus(t.statusReady || '● Listo para empaquetar', 'ready');
   }
 
   async updatePreview(file) {
@@ -300,74 +397,86 @@ class TabInstance {
   }
 
   async processCompression() {
-    if (!this.selectedFile) return;
-
     const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
 
     try {
-      this.setStatus(t.statusProcessing || '⏳ Aplastando archivo...', 'processing');
       this.compressBtn.disabled = true;
       this.downloadLink.classList.add('hidden');
       this.metricsTable.classList.add('hidden');
-
       this.startSmashAnimation();
 
       let compressedBlob = null;
       let methodKey = '';
-      const fileType = this.selectedFile.type;
-      const fileNameLower = this.selectedFile.name.toLowerCase();
+      let originalSize = 0;
 
-      if (fileType.startsWith('image/')) {
-        compressedBlob = await new Promise((resolve, reject) => {
-          new Compressor(this.selectedFile, {
-            quality: 0.6,
-            maxWidth: 1600,
-            maxHeight: 1600,
-            convertSize: 1000000,
-            retainExif: false,
-            strict: false,
-            mimeType: fileType === 'image/png' ? 'image/png' : 'image/jpeg',
-            success(result) {
-              resolve(result);
-            },
-            error(err) {
-              reject(err);
-            },
-          });
+      if (this.isZipMode) {
+        if (!this.selectedFiles.length) return;
+        this.setStatus(t.statusZipBuilding || '⏳ Armando paquete .ZIP...', 'processing');
+
+        const zip = new JSZip();
+        this.selectedFiles.forEach(f => {
+          zip.file(f.name, f);
+          originalSize += f.size;
         });
-        methodKey = 'img';
-      } else if (fileType === 'application/pdf' || fileNameLower.endsWith('.pdf')) {
-        const arrayBuffer = await this.selectedFile.arrayBuffer();
-        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-        const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
-        compressedBlob = new Blob([pdfBytes], { type: 'application/pdf' });
-        methodKey = 'pdf';
-      } else if (fileType.startsWith('audio/') || fileNameLower.endsWith('.mp3') || fileNameLower.endsWith('.wav') || fileNameLower.endsWith('.ogg')) {
-        this.setStatus(t.statusEncodingAudio || '⏳ Codificando audio MP3...', 'processing');
-        compressedBlob = await compressAudioFile(this.selectedFile, 128);
-        methodKey = 'audio';
-      } else if (fileType.startsWith('video/') || fileNameLower.endsWith('.mp4') || fileNameLower.endsWith('.webm')) {
-        this.setStatus(t.statusEncodingVideo || '⏳ Re-codificando video (FFmpeg)...', 'processing');
-        compressedBlob = await compressVideoFile(this.selectedFile);
-        methodKey = 'video';
-      } else if (
-        fileType.startsWith('text/') || fileNameLower.endsWith('.json') ||
-        fileNameLower.endsWith('.csv') || fileNameLower.endsWith('.svg')
-      ) {
-        const text = await this.selectedFile.text();
-        const minifiedText = text.replace(/\s+/g, ' ').trim();
-        compressedBlob = new Blob([minifiedText], { type: fileType || 'text/plain' });
-        methodKey = 'text';
+
+        compressedBlob = await zip.generateAsync({ type: 'blob' });
+        methodKey = 'zip';
+
       } else {
-        throw new Error(t.unsupportedError || 'Tipo de archivo no soportado para compresión directa.');
+        if (!this.selectedFile) return;
+        this.setStatus(t.statusProcessing || '⏳ Aplastando archivo...', 'processing');
+
+        originalSize = this.selectedFile.size;
+        const fileType = this.selectedFile.type;
+        const fileNameLower = this.selectedFile.name.toLowerCase();
+
+        if (fileType.startsWith('image/')) {
+          compressedBlob = await new Promise((resolve, reject) => {
+            new Compressor(this.selectedFile, {
+              quality: 0.6,
+              maxWidth: 1600,
+              maxHeight: 1600,
+              convertSize: 1000000,
+              retainExif: false,
+              strict: false,
+              mimeType: fileType === 'image/png' ? 'image/png' : 'image/jpeg',
+              success(result) { resolve(result); },
+              error(err) { reject(err); },
+            });
+          });
+          methodKey = 'img';
+        } else if (fileType === 'application/pdf' || fileNameLower.endsWith('.pdf')) {
+          const arrayBuffer = await this.selectedFile.arrayBuffer();
+          const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+          const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
+          compressedBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+          methodKey = 'pdf';
+        } else if (fileType.startsWith('audio/') || fileNameLower.endsWith('.mp3') || fileNameLower.endsWith('.wav') || fileNameLower.endsWith('.ogg')) {
+          this.setStatus(t.statusEncodingAudio || '⏳ Codificando audio MP3...', 'processing');
+          compressedBlob = await compressAudioFile(this.selectedFile, 128);
+          methodKey = 'audio';
+        } else if (fileType.startsWith('video/') || fileNameLower.endsWith('.mp4') || fileNameLower.endsWith('.webm')) {
+          this.setStatus(t.statusEncodingVideo || '⏳ Re-codificando video (FFmpeg)...', 'processing');
+          compressedBlob = await compressVideoFile(this.selectedFile);
+          methodKey = 'video';
+        } else if (
+          fileType.startsWith('text/') || fileNameLower.endsWith('.json') ||
+          fileNameLower.endsWith('.csv') || fileNameLower.endsWith('.svg')
+        ) {
+          const text = await this.selectedFile.text();
+          const minifiedText = text.replace(/\s+/g, ' ').trim();
+          compressedBlob = new Blob([minifiedText], { type: fileType || 'text/plain' });
+          methodKey = 'text';
+        } else {
+          throw new Error(t.unsupportedError || 'Tipo de archivo no soportado para compresión directa.');
+        }
       }
 
       this.lastMethodKey = methodKey;
 
-      const originalSize = this.selectedFile.size;
       const compressedSize = compressedBlob.size;
       const savedBytes = originalSize - compressedSize;
-      const ratio = (((originalSize - compressedSize) / originalSize) * 100).toFixed(2);
+      const ratio = originalSize > 0 ? (((originalSize - compressedSize) / originalSize) * 100).toFixed(2) : 0;
 
       await new Promise((resolve) => setTimeout(resolve, 1300));
 
@@ -375,15 +484,17 @@ class TabInstance {
       this.mComp.textContent = formatBytes(compressedSize);
       this.mSaved.textContent = savedBytes > 0 ? formatBytes(savedBytes) : '0 B';
       this.mRatio.textContent = savedBytes > 0 ? `-${ratio}%` : '0%';
-      this.mMethod.textContent = t[`${methodKey}Method`] || '';
+      this.mMethod.textContent = t[`${methodKey}Method`] || methodKey.toUpperCase();
       this.mMethodTooltip.textContent = t[`${methodKey}Desc`] || '';
       this.metricsTable.classList.remove('hidden');
 
       this.revokeDownloadUrl();
       this.downloadUrl = URL.createObjectURL(compressedBlob);
 
-      const safeName = sanitizeFilename(this.selectedFile.name);
+      const targetFileName = this.isZipMode ? 'paquete.zip' : this.selectedFile.name;
+      const safeName = sanitizeFilename(targetFileName);
       const downloadPrefix = t.downloadPrefix || 'Descargar';
+
       this.downloadLink.href = this.downloadUrl;
       this.downloadLink.download = safeName;
       this.downloadLink.textContent = `${downloadPrefix} ${safeName}`;
@@ -408,6 +519,7 @@ class TabInstance {
     this.revokePreviewUrl();
     this.revokeDownloadUrl();
     this.selectedFile = null;
+    this.selectedFiles = [];
     this.lastMethodKey = null;
     this.fileInput.value = '';
     this.fileName.textContent = t.noFile || 'Ningún archivo seleccionado';
