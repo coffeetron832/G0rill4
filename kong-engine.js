@@ -5,7 +5,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 const MAX_FILE_SIZE_MB = 100;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// Mapa de traducciones para el tooltip
 const BANANA_I18N = {
   es: '¡Arrástrame hacia el gorila!',
   en: 'Drag me to the gorilla!',
@@ -14,7 +13,7 @@ const BANANA_I18N = {
   de: 'Zieh mich zum Gorilla!'
 };
 
-// --- Web Audio API Synth ---
+// --- Web Audio API Synth (Singleton) ---
 let audioCtx = null;
 
 function getAudioContext() {
@@ -49,7 +48,7 @@ function playSquishSound() {
     osc.start(now);
     osc.stop(now + 0.12);
 
-    // Ruido Blanco para crujido
+    // Ruido Blanco
     const bufferSize = ctx.sampleRate * 0.15;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -110,7 +109,8 @@ function playEatSound() {
 
 async function compressAudioFile(file, targetBitrate = 128) {
   const arrayBuffer = await file.arrayBuffer();
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  // Se reutiliza o cierra el AudioContext para liberar memoria RAM
+  const ctx = getAudioContext();
   const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
   const numChannels = Math.min(audioBuffer.numberOfChannels, 2);
@@ -121,39 +121,37 @@ async function compressAudioFile(file, targetBitrate = 128) {
   const leftSamples = audioBuffer.getChannelData(0);
   const rightSamples = numChannels > 1 ? audioBuffer.getChannelData(1) : leftSamples;
 
-  const leftInt16 = new Int16Array(sampleLength);
-  const rightInt16 = new Int16Array(sampleLength);
-
-  for (let i = 0; i < sampleLength; i++) {
-    let sL = leftSamples[i];
-    leftInt16[i] = sL < 0 ? sL * 32768 : sL * 32767;
-
-    if (numChannels > 1) {
-      let sR = rightSamples[i];
-      rightInt16[i] = sR < 0 ? sR * 32768 : sR * 32767;
-    }
-  }
-
   const mp3Data = [];
-  const chunkSize = 1152;
-  const yieldInterval = 100;
-  let chunksProcessed = 0;
+  const chunkSize = 1152; // Tamaño estándar de bloque MP3
+  const leftChunkInt = new Int16Array(chunkSize);
+  const rightChunkInt = new Int16Array(chunkSize);
+
+  let yieldCounter = 0;
 
   for (let i = 0; i < sampleLength; i += chunkSize) {
-    const leftChunk = leftInt16.subarray(i, i + chunkSize);
-    let mp3buf;
+    const currentBlockSize = Math.min(chunkSize, sampleLength - i);
+    
+    for (let j = 0; j < currentBlockSize; j++) {
+      let sL = leftSamples[i + j];
+      leftChunkInt[j] = sL < 0 ? sL * 32768 : sL * 32767;
 
-    if (numChannels > 1) {
-      const rightChunk = rightInt16.subarray(i, i + chunkSize);
-      mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
-    } else {
-      mp3buf = mp3encoder.encodeBuffer(leftChunk);
+      if (numChannels > 1) {
+        let sR = rightSamples[i + j];
+        rightChunkInt[j] = sR < 0 ? sR * 32768 : sR * 32767;
+      }
     }
+
+    const lSub = currentBlockSize === chunkSize ? leftChunkInt : leftChunkInt.subarray(0, currentBlockSize);
+    const rSub = currentBlockSize === chunkSize ? rightChunkInt : rightChunkInt.subarray(0, currentBlockSize);
+
+    const mp3buf = numChannels > 1 
+      ? mp3encoder.encodeBuffer(lSub, rSub)
+      : mp3encoder.encodeBuffer(lSub);
 
     if (mp3buf.length > 0) mp3Data.push(mp3buf);
 
-    chunksProcessed++;
-    if (chunksProcessed % yieldInterval === 0) {
+    yieldCounter++;
+    if (yieldCounter % 100 === 0) {
       await new Promise(resolve => setTimeout(resolve, 0));
     }
   }
@@ -173,8 +171,8 @@ async function compressVideoFile(file) {
     await ffmpegInstance.load();
   }
 
-  const inputName = 'input_' + Date.now() + '_' + file.name;
-  const outputName = 'compressed_' + Date.now() + '.mp4';
+  const inputName = `input_${Date.now()}_${file.name}`;
+  const outputName = `compressed_${Date.now()}.mp4`;
 
   ffmpegInstance.FS('writeFile', inputName, await fetchFile(file));
 
@@ -245,11 +243,13 @@ class BananaPhysics {
       document.body.appendChild(this.canvas);
     }
 
-    this.canvas.style.position = 'fixed';
-    this.canvas.style.top = '0';
-    this.canvas.style.left = '0';
-    this.canvas.style.pointerEvents = 'none';
-    this.canvas.style.zIndex = '9998';
+    Object.assign(this.canvas.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      pointerEvents: 'none',
+      zIndex: '9998'
+    });
 
     this.ctx = this.canvas.getContext('2d');
     this.resizeCanvas();
@@ -279,18 +279,21 @@ class BananaPhysics {
   createTooltip() {
     this.tooltip = document.createElement('div');
     this.tooltip.id = 'bananaTooltip';
-    this.tooltip.style.position = 'fixed';
-    this.tooltip.style.pointerEvents = 'none';
-    this.tooltip.style.zIndex = '9999';
-    this.tooltip.style.background = 'rgba(0, 0, 0, 0.75)';
-    this.tooltip.style.color = '#fff';
-    this.tooltip.style.padding = '4px 8px';
-    this.tooltip.style.borderRadius = '6px';
-    this.tooltip.style.fontSize = '12px';
-    this.tooltip.style.fontWeight = 'bold';
-    this.tooltip.style.whiteSpace = 'nowrap';
-    this.tooltip.style.opacity = '0';
-    this.tooltip.style.transition = 'opacity 0.2s ease';
+    Object.assign(this.tooltip.style, {
+      position: 'fixed',
+      pointerEvents: 'none',
+      zIndex: '9999',
+      background: 'rgba(0, 0, 0, 0.75)',
+      color: '#fff',
+      padding: '4px 8px',
+      borderRadius: '6px',
+      fontSize: '12px',
+      fontWeight: 'bold',
+      whiteSpace: 'nowrap',
+      opacity: '0',
+      transition: 'opacity 0.2s ease'
+    });
+
     this.updateLanguage(this.currentLang);
     document.body.appendChild(this.tooltip);
   }
@@ -298,7 +301,7 @@ class BananaPhysics {
   updateLanguage(lang) {
     this.currentLang = lang;
     if (this.tooltip) {
-      this.tooltip.innerHTML = BANANA_I18N[lang] || BANANA_I18N['es'];
+      this.tooltip.textContent = BANANA_I18N[lang] || BANANA_I18N['es'];
     }
   }
 
@@ -523,25 +526,25 @@ class KongEngine {
     this.fileListContainer = document.getElementById('fileList');
     this.gorillaIcon = document.getElementById('gorillaIcon');
 
-    // Vistas y Contenedores
+    // Vistas
     this.initialView = document.getElementById('initialView');
     this.processView = document.getElementById('processView');
     this.downloadView = document.getElementById('downloadView');
 
-    // Elementos dinámicos de texto dentro de las vistas
+    // Textos de dropzone
     this.dropzoneTitle = document.querySelector('#dropzone [data-i18n="dragDropTitle"]') || document.querySelector('#dropzone h3');
     this.dropzoneSubtitle = document.querySelector('#dropzone [data-i18n="dragDropSubtitle"]') || document.querySelector('#dropzone p');
     this.dropzoneIcon = document.querySelector('#dropzone .dropzone-icon');
     this.processTitle = document.querySelector('#processView h2');
 
-    // Opciones de Modo
+    // Modos
     this.switchQuestionZip = document.getElementById('switchQuestionZip');
     this.switchQuestionCompress = document.getElementById('switchQuestionCompress');
     this.switchToZipBtn = document.getElementById('switchToZipBtn');
     this.switchToCompressBtn = document.getElementById('switchToCompressBtn');
 
-    // Botones de Acción
-    this.btnAddMore = document.getElementById('btnAddMore'); // Botón opcional para añadir más archivos desde la lista
+    // Botones
+    this.btnAddMore = document.getElementById('btnAddMore');
     this.btnCompress = document.getElementById('btnCompress');
     this.btnDownload = document.getElementById('btnDownload');
     this.btnReset = document.getElementById('btnReset');
@@ -556,7 +559,7 @@ class KongEngine {
       this.fileInput.addEventListener('change', (e) => {
         if (e.target.files && e.target.files.length > 0) {
           this.handleFileSelect(e.target.files);
-          e.target.value = ''; // Se limpia el valor del input para detectar nuevas elecciones continuas
+          e.target.value = '';
         }
       });
     }
@@ -586,7 +589,18 @@ class KongEngine {
       this.btnAddMore.addEventListener('click', () => this.fileInput.click());
     }
 
-    // Eventos para cambiar de modo
+    // Delegación de Eventos para eliminar ítems de la lista
+    if (this.fileListContainer) {
+      this.fileListContainer.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.btn-remove');
+        if (removeBtn) {
+          e.stopPropagation();
+          const index = parseInt(removeBtn.getAttribute('data-index'), 10);
+          this.removeFile(index);
+        }
+      });
+    }
+
     if (this.switchToZipBtn) {
       this.switchToZipBtn.addEventListener('click', () => {
         this.isZipMode = true;
@@ -615,7 +629,6 @@ class KongEngine {
   }
 
   updateModeUI() {
-    // 1. Configurar selección de archivos múltiples o individual
     if (this.fileInput) {
       if (this.isZipMode) {
         this.fileInput.setAttribute('multiple', 'true');
@@ -624,58 +637,31 @@ class KongEngine {
       }
     }
 
-    // 2. Alternar la pregunta del selector de modo
     if (this.switchQuestionZip && this.switchQuestionCompress) {
-      if (this.isZipMode) {
-        this.switchQuestionZip.classList.add('hidden');
-        this.switchQuestionCompress.classList.remove('hidden');
-      } else {
-        this.switchQuestionZip.classList.remove('hidden');
-        this.switchQuestionCompress.classList.add('hidden');
-      }
+      this.switchQuestionZip.classList.toggle('hidden', this.isZipMode);
+      this.switchQuestionCompress.classList.toggle('hidden', !this.isZipMode);
     }
 
-    // 3. Adaptar la interfaz y textos de las vistas según el modo activo
     if (this.isZipMode) {
       if (this.dropzone) {
         this.dropzone.classList.add('mode-zip');
         this.dropzone.classList.remove('mode-compress');
       }
-      if (this.dropzoneTitle) {
-        this.dropzoneTitle.textContent = 'Arrastra tus archivos para empaquetarlos';
-      }
-      if (this.dropzoneSubtitle) {
-        this.dropzoneSubtitle.textContent = 'Selecciona múltiples archivos para unir en un comprimido .ZIP';
-      }
-      if (this.btnCompress) {
-        this.btnCompress.textContent = 'Crear archivo .ZIP';
-      }
-      if (this.processTitle) {
-        this.processTitle.textContent = 'Archivos seleccionados para el paquete';
-      }
-      if (this.dropzoneIcon) {
-        this.dropzoneIcon.textContent = '📦';
-      }
+      if (this.dropzoneTitle) this.dropzoneTitle.textContent = 'Arrastra tus archivos para empaquetarlos';
+      if (this.dropzoneSubtitle) this.dropzoneSubtitle.textContent = 'Selecciona múltiples archivos para unir en un comprimido .ZIP';
+      if (this.btnCompress) this.btnCompress.textContent = 'Crear archivo .ZIP';
+      if (this.processTitle) this.processTitle.textContent = 'Archivos seleccionados para el paquete';
+      if (this.dropzoneIcon) this.dropzoneIcon.textContent = '📦';
     } else {
       if (this.dropzone) {
         this.dropzone.classList.add('mode-compress');
         this.dropzone.classList.remove('mode-zip');
       }
-      if (this.dropzoneTitle) {
-        this.dropzoneTitle.textContent = 'Arrastra tu archivo aquí';
-      }
-      if (this.dropzoneSubtitle) {
-        this.dropzoneSubtitle.textContent = 'Selecciona un archivo individual para reducir su peso';
-      }
-      if (this.btnCompress) {
-        this.btnCompress.textContent = 'Reducir peso';
-      }
-      if (this.processTitle) {
-        this.processTitle.textContent = 'Archivo a procesar';
-      }
-      if (this.dropzoneIcon) {
-        this.dropzoneIcon.textContent = '📁';
-      }
+      if (this.dropzoneTitle) this.dropzoneTitle.textContent = 'Arrastra tu archivo aquí';
+      if (this.dropzoneSubtitle) this.dropzoneSubtitle.textContent = 'Selecciona un archivo individual para reducir su peso';
+      if (this.btnCompress) this.btnCompress.textContent = 'Reducir peso';
+      if (this.processTitle) this.processTitle.textContent = 'Archivo a procesar';
+      if (this.dropzoneIcon) this.dropzoneIcon.textContent = '📁';
     }
   }
 
@@ -692,11 +678,7 @@ class KongEngine {
 
     if (validFiles.length === 0) return;
 
-    if (this.isZipMode) {
-      this.filesList = [...this.filesList, ...validFiles];
-    } else {
-      this.filesList = [validFiles[0]];
-    }
+    this.filesList = this.isZipMode ? [...this.filesList, ...validFiles] : [validFiles[0]];
 
     playSquishSound();
     bananaSystem.spawn(this.gorillaIcon);
@@ -718,6 +700,8 @@ class KongEngine {
     if (!this.fileListContainer) return;
     this.fileListContainer.innerHTML = '';
 
+    const fragment = document.createDocumentFragment();
+
     this.filesList.forEach((file, index) => {
       const item = document.createElement('div');
       item.className = 'file-item';
@@ -729,14 +713,10 @@ class KongEngine {
         </div>
         <button class="btn-remove" data-index="${index}">&times;</button>
       `;
-
-      item.querySelector('.btn-remove').addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.removeFile(parseInt(e.target.getAttribute('data-index'), 10));
-      });
-
-      this.fileListContainer.appendChild(item);
+      fragment.appendChild(item);
     });
+
+    this.fileListContainer.appendChild(fragment);
   }
 
   switchView(viewName) {
@@ -759,7 +739,7 @@ class KongEngine {
       const file = this.filesList[i];
       originalTotalSize += file.size;
 
-      const progress = Math.round(((i) / totalFiles) * 70);
+      const progress = Math.round((i / totalFiles) * 70);
       this.updateProgress(progress, `Procesando (${i + 1}/${totalFiles}): ${file.name}`);
 
       let processedBlob = file;
@@ -842,7 +822,7 @@ class KongEngine {
   }
 }
 
-// Inicialización de la aplicación al cargar el DOM
+// Inicialización
 document.addEventListener('DOMContentLoaded', () => {
   window.kongEngine = new KongEngine();
 });
