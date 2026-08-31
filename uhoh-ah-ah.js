@@ -26,6 +26,11 @@ const translations = {
     newTabTitle: "Nueva pestaña",
     limitError: "✖ El archivo supera el límite de 100MB",
     unsupportedError: "Tipo de archivo no soportado para compresión directa.",
+    // Alternancia de Modos (Nuevas claves)
+    askZipMode: "¿Buscas empaquetar varios archivos en un archivo comprimido?",
+    btnToZip: "Armar un archivo .ZIP",
+    askCompressMode: "¿Quieres reducir el tamaño o peso de un archivo individual?",
+    btnToCompress: "Reducir peso de archivo",
     // Métodos
     imgMethod: "Optimización Visual",
     imgDesc: "Reajusta las dimensiones de la imagen, elimina datos no visibles y equilibra la calidad para reducir peso sin perder detalle.",
@@ -66,6 +71,11 @@ const translations = {
     newTabTitle: "New tab",
     limitError: "✖ File exceeds 100MB limit",
     unsupportedError: "Unsupported file type for direct compression.",
+    // Alternancia de Modos
+    askZipMode: "Looking to package multiple files into a compressed archive?",
+    btnToZip: "Create a .ZIP file",
+    askCompressMode: "Do you want to reduce the size of an individual file?",
+    btnToCompress: "Reduce file size",
     // Methods
     imgMethod: "Visual Optimization",
     imgDesc: "Resizes dimensions, removes EXIF metadata, and balances quality to shrink file size without losing visible detail.",
@@ -106,6 +116,11 @@ const translations = {
     newTabTitle: "Nova aba",
     limitError: "✖ O arquivo excede o limite de 100MB",
     unsupportedError: "Tipo de arquivo não suportado para compactação direta.",
+    // Alternancia de Modos
+    askZipMode: "Deseja empacotar vários arquivos em um arquivo compactado?",
+    btnToZip: "Criar um arquivo .ZIP",
+    askCompressMode: "Quer reduzir o tamanho de um arquivo individual?",
+    btnToCompress: "Reduzir tamanho do arquivo",
     // Métodos
     imgMethod: "Otimização Visual",
     imgDesc: "Redimensiona imagens, remove metadados EXIF e equilibra a qualidade para reduzir o tamanho sem perder detalhes visíveis.",
@@ -146,6 +161,11 @@ const translations = {
     newTabTitle: "Nouvel onglet",
     limitError: "✖ Le fichier dépasse la limite de 100 Mo",
     unsupportedError: "Type de fichier non pris en charge pour la compression directe.",
+    // Alternancia de Modos
+    askZipMode: "Vous cherchez à regrouper plusieurs fichiers dans une archive ?",
+    btnToZip: "Créer un fichier .ZIP",
+    askCompressMode: "Voulez-vous réduire la taille d'un fichier individuel ?",
+    btnToCompress: "Réduire la taille du fichier",
     // Métodes
     imgMethod: "Optimisation Visuelle",
     imgDesc: "Redimensionne les images, supprime les métadonnées et équilibre la qualité pour réduire la taille sans perte visible.",
@@ -186,6 +206,11 @@ const translations = {
     newTabTitle: "Neuer Tab",
     limitError: "✖ Datei überschreitet das Limit von 100 MB",
     unsupportedError: "Nicht unterstützter Dateityp für direkte Komprimierung.",
+    // Alternancia de Modos
+    askZipMode: "Möchtest du mehrere Dateien in einem ZIP-Archiv bündeln?",
+    btnToZip: "ZIP-Datei erstellen",
+    askCompressMode: "Möchtest du die Größe einer einzelnen Datei reduzieren?",
+    btnToCompress: "Dateigröße reduzieren",
     // Methoden
     imgMethod: "Visuelle Optimierung",
     imgDesc: "Passt Bildabmessungen an, entfernt EXIF-Metadaten und optimiert die Qualität für kleinere Dateigrößen.",
@@ -226,6 +251,11 @@ const translations = {
     newTabTitle: "Nuova scheda",
     limitError: "✖ Il file supera il limite di 100 MB",
     unsupportedError: "Tipo di file non supportato per la compressione directa.",
+    // Alternancia de Modos
+    askZipMode: "Vuoi raggruppare più file in un unico archivio compresso?",
+    btnToZip: "Crea un file .ZIP",
+    askCompressMode: "Vuoi ridurre le dimensioni di un singolo file?",
+    btnToCompress: "Riduci dimensione file",
     // Metodi
     imgMethod: "Ottimizzazione Visiva",
     imgDesc: "Ridimensiona le immagini, rimuove i metadati ed equilibra la qualità per ridurre lo spazio occupato.",
