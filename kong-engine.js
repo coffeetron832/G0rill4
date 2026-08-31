@@ -541,7 +541,7 @@ class KongEngine {
     this.switchToCompressBtn = document.getElementById('switchToCompressBtn');
 
     // Botones de Acción
-    this.btnAddMore = document.getElementById('btnAddMore');
+    this.btnAddMore = document.getElementById('btnAddMore'); // Botón opcional para añadir más archivos desde la lista
     this.btnCompress = document.getElementById('btnCompress');
     this.btnDownload = document.getElementById('btnDownload');
     this.btnReset = document.getElementById('btnReset');
@@ -556,7 +556,7 @@ class KongEngine {
       this.fileInput.addEventListener('change', (e) => {
         if (e.target.files && e.target.files.length > 0) {
           this.handleFileSelect(e.target.files);
-          e.target.value = '';
+          e.target.value = ''; // Se limpia el valor del input para detectar nuevas elecciones continuas
         }
       });
     }
@@ -586,6 +586,7 @@ class KongEngine {
       this.btnAddMore.addEventListener('click', () => this.fileInput.click());
     }
 
+    // Eventos para cambiar de modo
     if (this.switchToZipBtn) {
       this.switchToZipBtn.addEventListener('click', () => {
         this.isZipMode = true;
@@ -614,6 +615,7 @@ class KongEngine {
   }
 
   updateModeUI() {
+    // 1. Configurar selección de archivos múltiples o individual
     if (this.fileInput) {
       if (this.isZipMode) {
         this.fileInput.setAttribute('multiple', 'true');
@@ -622,6 +624,7 @@ class KongEngine {
       }
     }
 
+    // 2. Alternar la pregunta del selector de modo
     if (this.switchQuestionZip && this.switchQuestionCompress) {
       if (this.isZipMode) {
         this.switchQuestionZip.classList.add('hidden');
@@ -632,6 +635,7 @@ class KongEngine {
       }
     }
 
+    // 3. Adaptar la interfaz y textos de las vistas según el modo activo
     if (this.isZipMode) {
       if (this.dropzone) {
         this.dropzone.classList.add('mode-zip');
@@ -749,9 +753,11 @@ class KongEngine {
 
     const zip = new JSZip();
     const totalFiles = this.filesList.length;
+    let originalTotalSize = 0;
 
     for (let i = 0; i < totalFiles; i++) {
       const file = this.filesList[i];
+      originalTotalSize += file.size;
 
       const progress = Math.round(((i) / totalFiles) * 70);
       this.updateProgress(progress, `Procesando (${i + 1}/${totalFiles}): ${file.name}`);
@@ -783,12 +789,14 @@ class KongEngine {
       });
 
       const compressedSize = this.generatedZipBlob.size;
-      const sizeLabel = this.isZipMode ? 'Tamaño final ZIP' : 'Tamaño final';
+      const savings = Math.max(0, originalTotalSize - compressedSize);
+      const savingsPercent = originalTotalSize > 0 ? ((savings / originalTotalSize) * 100).toFixed(1) : 0;
 
       if (this.zipStats) {
         this.zipStats.innerHTML = `
-          <p><strong>Estado:</strong> ✔ Completado</p>
-          <p><strong>${sizeLabel}:</strong> ${formatBytes(compressedSize)}</p>
+          <p><strong>Tamaño original:</strong> ${formatBytes(originalTotalSize)}</p>
+          <p><strong>Tamaño final ZIP:</strong> ${formatBytes(compressedSize)}</p>
+          <p><strong>Ahorro total:</strong> ${formatBytes(savings)} (${savingsPercent}%)</p>
         `;
       }
 
