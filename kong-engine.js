@@ -541,6 +541,7 @@ class KongEngine {
     this.switchToCompressBtn = document.getElementById('switchToCompressBtn');
 
     // Botones de Acción
+    this.btnAddMore = document.getElementById('btnAddMore'); // Botón opcional para añadir más archivos desde la lista
     this.btnCompress = document.getElementById('btnCompress');
     this.btnDownload = document.getElementById('btnDownload');
     this.btnReset = document.getElementById('btnReset');
@@ -551,9 +552,17 @@ class KongEngine {
   }
 
   bindEvents() {
-    if (this.dropzone && this.fileInput) {
+    if (this.fileInput) {
+      this.fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          this.handleFileSelect(e.target.files);
+          e.target.value = ''; // Se limpia el valor del input para detectar nuevas elecciones continuas
+        }
+      });
+    }
+
+    if (this.dropzone) {
       this.dropzone.addEventListener('click', () => this.fileInput.click());
-      this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e.target.files));
 
       this.dropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -571,6 +580,10 @@ class KongEngine {
           this.handleFileSelect(e.dataTransfer.files);
         }
       });
+    }
+
+    if (this.btnAddMore) {
+      this.btnAddMore.addEventListener('click', () => this.fileInput.click());
     }
 
     // Eventos para cambiar de modo
