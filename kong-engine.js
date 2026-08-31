@@ -106,7 +106,7 @@ function playEatSound() {
   }
 }
 
-// --- Helpers para compresión ---
+// --- Helpers para compresión y procesamiento ---
 
 async function compressAudioFile(file, targetBitrate = 128) {
   const arrayBuffer = await file.arrayBuffer();
@@ -194,6 +194,48 @@ async function compressVideoFile(file) {
   return new Blob([data.buffer], { type: 'video/mp4' });
 }
 
+// Procesa imágenes reduciendo dimensiones/calidad mediante HTML5 Canvas
+async function compressImageFile(file, quality = 0.75, maxWidth = 1920) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Error al comprimir la imagen.'));
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('No se pudo cargar la imagen.'));
+    };
+
+    img.src = url;
+  });
+}
+
 // --- Clase Motor de Físicas del Banano ---
 class BananaPhysics {
   constructor(canvasId, lang = 'es') {
@@ -204,7 +246,6 @@ class BananaPhysics {
       document.body.appendChild(this.canvas);
     }
 
-    // Configuración para no interceptar la interfaz de usuario
     this.canvas.style.position = 'fixed';
     this.canvas.style.top = '0';
     this.canvas.style.left = '0';
@@ -230,7 +271,6 @@ class BananaPhysics {
     this.gorillaEl = null;
     this.lastTime = 0;
 
-    // Crear elemento del Tooltip
     this.createTooltip();
 
     window.addEventListener('resize', () => this.resizeCanvas());
@@ -256,7 +296,6 @@ class BananaPhysics {
     document.body.appendChild(this.tooltip);
   }
 
-  // Método para cambiar el idioma del tooltip dinámicamente
   updateLanguage(lang) {
     this.currentLang = lang;
     if (this.tooltip) {
@@ -279,7 +318,6 @@ class BananaPhysics {
     this.isDragging = false;
     this.lastTime = performance.now();
 
-    // Mantener oculto al aparecer en la parte superior
     if (this.tooltip) this.tooltip.style.opacity = '0';
 
     if (!this.animId) this.loop(performance.now());
@@ -301,10 +339,8 @@ class BananaPhysics {
         this.dragOffsetX = pos.x - this.x;
         this.dragOffsetY = pos.y - this.y;
 
-        // Ocultar tooltip al iniciar el arrastre
         if (this.tooltip) this.tooltip.style.opacity = '0';
 
-        // Prevenir selección de texto
         if (e.cancelable) e.preventDefault();
         if (window.getSelection) window.getSelection().removeAllRanges();
       }
@@ -318,7 +354,6 @@ class BananaPhysics {
         this.x = pos.x - this.dragOffsetX;
         this.y = pos.y - this.dragOffsetY;
 
-        // Prevenir selección de texto durante el movimiento
         if (e.cancelable) e.preventDefault();
       }
     };
@@ -385,7 +420,6 @@ class BananaPhysics {
         this.y = floor;
         this.vy *= this.bounce;
 
-        // Mostrar el tooltip solo cuando toque el suelo y no esté siendo arrastrado
         if (this.tooltip && !this.isDragging) this.tooltip.style.opacity = '1';
       }
 
@@ -429,11 +463,8 @@ class BananaPhysics {
   }
 }
 
-// Instancia global de la física (por defecto en español)
+// Instancia global de la física
 const bananaSystem = new BananaPhysics('physicsCanvas', 'es');
-
-// Si cambias de idioma en tu aplicación, solo llamas:
-// bananaSystem.updateLanguage('en');
 
 // --- Helper Utilities ---
 function sanitizeFilename(filename) {
@@ -474,3 +505,232 @@ function formatBytes(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
+
+// --- Controlador Principal (KongEngine) ---
+class KongEngine {
+  constructor() {
+    this.filesList = [];
+    this.generatedZipBlob = null;
+
+    this.initElements();
+    this.bindEvents();
+  }
+
+  initElements() {
+    this.dropzone = document.getElementById('dropzone');
+    this.fileInput = document.getElementById('fileInput');
+    this.fileListContainer = document.getElementById('fileList');
+    this.gorillaIcon = document.getElementById('gorillaIcon');
+
+    // Vistas y Contenedores
+    this.initialView = document.getElementById('initialView');
+    this.processView = document.getElementById('processView');
+    this.downloadView = document.getElementById('downloadView');
+
+    // Botones de Acción
+    this.btnCompress = document.getElementById('btnCompress');
+    this.btnDownload = document.getElementById('btnDownload');
+    this.btnReset = document.getElementById('btnReset');
+    this.progressContainer = document.getElementById('progressContainer');
+    this.progressBar = document.getElementById('progressBar');
+    this.progressText = document.getElementById('progressText');
+    this.zipStats = document.getElementById('zipStats');
+  }
+
+  bindEvents() {
+    if (this.dropzone && this.fileInput) {
+      this.dropzone.addEventListener('click', () => this.fileInput.click());
+      this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e.target.files));
+
+      this.dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        this.dropzone.classList.add('dragover');
+      });
+
+      this.dropzone.addEventListener('dragleave', () => {
+        this.dropzone.classList.remove('dragover');
+      });
+
+      this.dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        this.dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          this.handleFileSelect(e.dataTransfer.files);
+        }
+      });
+    }
+
+    if (this.btnCompress) {
+      this.btnCompress.addEventListener('click', () => this.processAndZipFiles());
+    }
+
+    if (this.btnDownload) {
+      this.btnDownload.addEventListener('click', () => this.triggerDownload());
+    }
+
+    if (this.btnReset) {
+      this.btnReset.addEventListener('click', () => this.resetUI());
+    }
+  }
+
+  handleFileSelect(files) {
+    const validFiles = Array.from(files).filter(file => {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        alert(`El archivo "${file.name}" supera el límite permitido de ${MAX_FILE_SIZE_MB}MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    this.filesList = [...this.filesList, ...validFiles];
+    playSquishSound();
+    
+    // Soltar animación de banano
+    bananaSystem.spawn(this.gorillaIcon);
+
+    this.renderFileList();
+    this.switchView('process');
+  }
+
+  removeFile(index) {
+    this.filesList.splice(index, 1);
+    if (this.filesList.length === 0) {
+      this.resetUI();
+    } else {
+      this.renderFileList();
+    }
+  }
+
+  renderFileList() {
+    if (!this.fileListContainer) return;
+    this.fileListContainer.innerHTML = '';
+
+    this.filesList.forEach((file, index) => {
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML = `
+        <span class="file-icon">${getFileEmoji(file)}</span>
+        <div class="file-info">
+          <div class="file-name" title="${escapeHTML(file.name)}">${escapeHTML(file.name)}</div>
+          <div class="file-size">${formatBytes(file.size)}</div>
+        </div>
+        <button class="btn-remove" data-index="${index}">&times;</button>
+      `;
+
+      item.querySelector('.btn-remove').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.removeFile(parseInt(e.target.getAttribute('data-index'), 10));
+      });
+
+      this.fileListContainer.appendChild(item);
+    });
+  }
+
+  switchView(viewName) {
+    if (this.initialView) this.initialView.style.display = viewName === 'initial' ? 'block' : 'none';
+    if (this.processView) this.processView.style.display = viewName === 'process' ? 'block' : 'none';
+    if (this.downloadView) this.downloadView.style.display = viewName === 'download' ? 'block' : 'none';
+  }
+
+  async processAndZipFiles() {
+    if (this.filesList.length === 0) return;
+
+    this.btnCompress.disabled = true;
+    if (this.progressContainer) this.progressContainer.style.display = 'block';
+
+    const zip = new JSZip();
+    const totalFiles = this.filesList.length;
+    let originalTotalSize = 0;
+
+    for (let i = 0; i < totalFiles; i++) {
+      const file = this.filesList[i];
+      originalTotalSize += file.size;
+
+      const progress = Math.round(((i) / totalFiles) * 70);
+      this.updateProgress(progress, `Procesando (${i + 1}/${totalFiles}): ${file.name}`);
+
+      let processedBlob = file;
+      const sanitizedName = sanitizeFilename(file.name);
+
+      try {
+        if (file.type.startsWith('image/')) {
+          processedBlob = await compressImageFile(file);
+        } else if (file.type.startsWith('audio/')) {
+          processedBlob = await compressAudioFile(file);
+        } else if (file.type.startsWith('video/')) {
+          processedBlob = await compressVideoFile(file);
+        }
+      } catch (err) {
+        console.warn(`Fallback al archivo original para ${file.name}:`, err);
+      }
+
+      zip.file(sanitizedName, processedBlob);
+    }
+
+    this.updateProgress(75, 'Generando paquete .ZIP...');
+
+    try {
+      this.generatedZipBlob = await zip.generateAsync({ type: 'blob' }, (metadata) => {
+        const zipProgress = 75 + Math.round((metadata.percent * 0.25));
+        this.updateProgress(zipProgress, `Empacando... ${Math.round(metadata.percent)}%`);
+      });
+
+      const compressedSize = this.generatedZipBlob.size;
+      const savings = Math.max(0, originalTotalSize - compressedSize);
+      const savingsPercent = originalTotalSize > 0 ? ((savings / originalTotalSize) * 100).toFixed(1) : 0;
+
+      if (this.zipStats) {
+        this.zipStats.innerHTML = `
+          <p><strong>Tamaño original:</strong> ${formatBytes(originalTotalSize)}</p>
+          <p><strong>Tamaño final ZIP:</strong> ${formatBytes(compressedSize)}</p>
+          <p><strong>Ahorro total:</strong> ${formatBytes(savings)} (${savingsPercent}%)</p>
+        `;
+      }
+
+      playSquishSound();
+      this.switchView('download');
+    } catch (error) {
+      console.error('Error al generar el ZIP:', error);
+      alert('Ocurrió un error inesperado al comprimir los archivos.');
+    } finally {
+      this.btnCompress.disabled = false;
+      if (this.progressContainer) this.progressContainer.style.display = 'none';
+    }
+  }
+
+  updateProgress(percentage, text) {
+    if (this.progressBar) this.progressBar.style.width = `${percentage}%`;
+    if (this.progressText) this.progressText.innerText = text;
+  }
+
+  triggerDownload() {
+    if (!this.generatedZipBlob) return;
+
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(this.generatedZipBlob);
+    link.download = `kong_compressed_${Date.now()}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+
+  resetUI() {
+    this.filesList = [];
+    this.generatedZipBlob = null;
+    if (this.fileInput) this.fileInput.value = '';
+    if (this.fileListContainer) this.fileListContainer.innerHTML = '';
+    if (this.progressContainer) this.progressContainer.style.display = 'none';
+    if (this.progressBar) this.progressBar.style.width = '0%';
+    
+    this.switchView('initial');
+  }
+}
+
+// Inicialización de la aplicación al cargar el DOM
+document.addEventListener('DOMContentLoaded', () => {
+  window.kongEngine = new KongEngine();
+});
