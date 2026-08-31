@@ -31,6 +31,7 @@ function playSquishSound() {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
 
+    // Oscilador de Impacto
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
 
@@ -47,6 +48,7 @@ function playSquishSound() {
     osc.start(now);
     osc.stop(now + 0.12);
 
+    // Ruido Blanco
     const bufferSize = ctx.sampleRate * 0.15;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -107,6 +109,7 @@ function playEatSound() {
 
 async function compressAudioFile(file, targetBitrate = 128) {
   const arrayBuffer = await file.arrayBuffer();
+  // Se reutiliza o cierra el AudioContext para liberar memoria RAM
   const ctx = getAudioContext();
   const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
@@ -119,7 +122,7 @@ async function compressAudioFile(file, targetBitrate = 128) {
   const rightSamples = numChannels > 1 ? audioBuffer.getChannelData(1) : leftSamples;
 
   const mp3Data = [];
-  const chunkSize = 1152;
+  const chunkSize = 1152; // Tamaño estándar de bloque MP3
   const leftChunkInt = new Int16Array(chunkSize);
   const rightChunkInt = new Int16Array(chunkSize);
 
@@ -508,7 +511,7 @@ function formatBytes(bytes) {
 // --- Controlador Principal (KongEngine) ---
 class KongEngine {
   constructor() {
-    this.filesList = []; // Estructura: [{ file: File, customName: String }]
+    this.filesList = [];
     this.generatedZipBlob = null;
     this.isZipMode = false;
 
@@ -539,12 +542,6 @@ class KongEngine {
     this.switchQuestionCompress = document.getElementById('switchQuestionCompress');
     this.switchToZipBtn = document.getElementById('switchToZipBtn');
     this.switchToCompressBtn = document.getElementById('switchToCompressBtn');
-
-    // Inputs de Nombre ZIP
-    this.zipNameInput = document.getElementById('zipNameInput');
-
-    // Contenedor resumen para vista de descarga
-    this.downloadFileListContainer = document.getElementById('downloadFileList');
 
     // Botones
     this.btnAddMore = document.getElementById('btnAddMore');
@@ -592,7 +589,7 @@ class KongEngine {
       this.btnAddMore.addEventListener('click', () => this.fileInput.click());
     }
 
-    // Delegación de Eventos en lista de archivos (Eliminación y Renombrado)
+    // Delegación de Eventos para eliminar ítems de la lista
     if (this.fileListContainer) {
       this.fileListContainer.addEventListener('click', (e) => {
         const removeBtn = e.target.closest('.btn-remove');
@@ -600,16 +597,6 @@ class KongEngine {
           e.stopPropagation();
           const index = parseInt(removeBtn.getAttribute('data-index'), 10);
           this.removeFile(index);
-        }
-      });
-
-      this.fileListContainer.addEventListener('input', (e) => {
-        const nameInput = e.target.closest('.file-rename-input');
-        if (nameInput) {
-          const index = parseInt(nameInput.getAttribute('data-index'), 10);
-          if (this.filesList[index]) {
-            this.filesList[index].customName = nameInput.value.trim() || this.filesList[index].file.name;
-          }
         }
       });
     }
@@ -691,12 +678,7 @@ class KongEngine {
 
     if (validFiles.length === 0) return;
 
-    const mappedFiles = validFiles.map(file => ({
-      file: file,
-      customName: file.name
-    }));
-
-    this.filesList = this.isZipMode ? [...this.filesList, ...mappedFiles] : [mappedFiles[0]];
+    this.filesList = this.isZipMode ? [...this.filesList, ...validFiles] : [validFiles[0]];
 
     playSquishSound();
     bananaSystem.spawn(this.gorillaIcon);
@@ -720,14 +702,13 @@ class KongEngine {
 
     const fragment = document.createDocumentFragment();
 
-    this.filesList.forEach((itemObj, index) => {
-      const file = itemObj.file;
+    this.filesList.forEach((file, index) => {
       const item = document.createElement('div');
       item.className = 'file-item';
       item.innerHTML = `
         <span class="file-icon">${getFileEmoji(file)}</span>
         <div class="file-info">
-          <input type="text" className="file-rename-input" data-index="${index}" value="${escapeHTML(itemObj.customName)}" placeholder="Nombre del archivo" />
+          <div class="file-name" title="${escapeHTML(file.name)}">${escapeHTML(file.name)}</div>
           <div class="file-size">${formatBytes(file.size)}</div>
         </div>
         <button class="btn-remove" data-index="${index}">&times;</button>
@@ -736,28 +717,6 @@ class KongEngine {
     });
 
     this.fileListContainer.appendChild(fragment);
-  }
-
-  renderDownloadFileList() {
-    if (!this.downloadFileListContainer) return;
-    this.downloadFileListContainer.innerHTML = '';
-
-    const fragment = document.createDocumentFragment();
-
-    this.filesList.forEach((itemObj) => {
-      const item = document.createElement('div');
-      item.className = 'file-item file-item-download';
-      item.innerHTML = `
-        <span class="file-icon">${getFileEmoji(itemObj.file)}</span>
-        <div class="file-info">
-          <div class="file-name" title="${escapeHTML(itemObj.customName)}">${escapeHTML(itemObj.customName)}</div>
-          <div class="file-size">${formatBytes(itemObj.file.size)}</div>
-        </div>
-      `;
-      fragment.appendChild(item);
-    });
-
-    this.downloadFileListContainer.appendChild(fragment);
   }
 
   switchView(viewName) {
@@ -777,15 +736,14 @@ class KongEngine {
     let originalTotalSize = 0;
 
     for (let i = 0; i < totalFiles; i++) {
-      const itemObj = this.filesList[i];
-      const file = itemObj.file;
+      const file = this.filesList[i];
       originalTotalSize += file.size;
 
       const progress = Math.round((i / totalFiles) * 70);
-      this.updateProgress(progress, `Procesando (${i + 1}/${totalFiles}): ${itemObj.customName}`);
+      this.updateProgress(progress, `Procesando (${i + 1}/${totalFiles}): ${file.name}`);
 
       let processedBlob = file;
-      const sanitizedName = sanitizeFilename(itemObj.customName);
+      const sanitizedName = sanitizeFilename(file.name);
 
       try {
         if (file.type.startsWith('image/')) {
@@ -796,7 +754,7 @@ class KongEngine {
           processedBlob = await compressVideoFile(file);
         }
       } catch (err) {
-        console.warn(`Fallback al archivo original para ${itemObj.customName}:`, err);
+        console.warn(`Fallback al archivo original para ${file.name}:`, err);
       }
 
       zip.file(sanitizedName, processedBlob);
@@ -822,7 +780,6 @@ class KongEngine {
         `;
       }
 
-      this.renderDownloadFileList();
       playSquishSound();
       this.switchView('download');
     } catch (error) {
@@ -842,20 +799,9 @@ class KongEngine {
   triggerDownload() {
     if (!this.generatedZipBlob) return;
 
-    let zipName = 'kong_package';
-    if (this.zipNameInput && this.zipNameInput.value.trim() !== '') {
-      zipName = sanitizeFilename(this.zipNameInput.value.trim());
-    } else {
-      zipName = `kong_compressed_${Date.now()}`;
-    }
-
-    if (!zipName.endsWith('.zip')) {
-      zipName += '.zip';
-    }
-
     const link = document.createElement('a');
     link.href = URL.createObjectURL(this.generatedZipBlob);
-    link.download = zipName;
+    link.download = `kong_compressed_${Date.now()}.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -867,9 +813,7 @@ class KongEngine {
     this.filesList = [];
     this.generatedZipBlob = null;
     if (this.fileInput) this.fileInput.value = '';
-    if (this.zipNameInput) this.zipNameInput.value = '';
     if (this.fileListContainer) this.fileListContainer.innerHTML = '';
-    if (this.downloadFileListContainer) this.downloadFileListContainer.innerHTML = '';
     if (this.progressContainer) this.progressContainer.style.display = 'none';
     if (this.progressBar) this.progressBar.style.width = '0%';
 
