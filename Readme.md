@@ -11,7 +11,7 @@
 
 </div>
 
-It is a lightweight web tool to compress your files without having to upload them to any external server. 
+A lightweight web tool designed to reduce file sizes and build custom .ZIP packages locally. Everything happens in your browser, meaning zero uploads to external servers.
 
 ## Highlights
 
