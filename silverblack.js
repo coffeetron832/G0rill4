@@ -71,6 +71,12 @@ class TabInstance {
       <div class="output">
         <p><span class="status-label">Estado: </span><span class="status-badge idle">● En espera</span></p>
 
+        <!-- Contenedor simple para salida en Modo ZIP -->
+        <div class="zip-metrics-info hidden" style="margin-top: 8px;">
+          <p><strong><span class="lbl-m-comp-zip">Tamaño final:</span></strong> <span class="m-comp-zip">-</span></p>
+        </div>
+
+        <!-- Tabla detallada para Modo Compresión individual -->
         <table class="metrics-table hidden">
           <tr><td class="lbl-m-orig">Tamaño original:</td><td class="m-orig">-</td></tr>
           <tr><td class="lbl-m-comp">Tamaño final:</td><td class="m-comp">-</td></tr>
@@ -105,6 +111,13 @@ class TabInstance {
     this.compressBtn = this.tabBody.querySelector('.compress-btn');
     this.statusLabel = this.tabBody.querySelector('.status-label');
     this.statusBadge = this.tabBody.querySelector('.status-badge');
+    
+    // Elementos ZIP reducidos
+    this.zipMetricsInfo = this.tabBody.querySelector('.zip-metrics-info');
+    this.lblMCompZip = this.tabBody.querySelector('.lbl-m-comp-zip');
+    this.mCompZip = this.tabBody.querySelector('.m-comp-zip');
+
+    // Métricas para compresión estándar
     this.metricsTable = this.tabBody.querySelector('.metrics-table');
     this.lblMOrig = this.tabBody.querySelector('.lbl-m-orig');
     this.lblMComp = this.tabBody.querySelector('.lbl-m-comp');
@@ -239,6 +252,7 @@ class TabInstance {
     }
 
     // Encabezados de métricas
+    if (this.lblMCompZip) this.lblMCompZip.textContent = t.mComp || 'Tamaño final:';
     if (this.lblMOrig) this.lblMOrig.textContent = t.mOrig;
     if (this.lblMComp) this.lblMComp.textContent = t.mComp;
     if (this.lblMSaved) this.lblMSaved.textContent = t.mSaved;
@@ -294,6 +308,7 @@ class TabInstance {
 
     this.compressBtn.disabled = false;
     this.downloadLink.classList.add('hidden');
+    this.zipMetricsInfo.classList.add('hidden');
     this.metricsTable.classList.add('hidden');
     this.setStatus(t.statusPreview || '● Cargando vista previa...', 'ready');
 
@@ -322,6 +337,7 @@ class TabInstance {
     this.previewContainer.innerHTML = `<span class="file-icon">📦</span>`;
     this.compressBtn.disabled = false;
     this.downloadLink.classList.add('hidden');
+    this.zipMetricsInfo.classList.add('hidden');
     this.metricsTable.classList.add('hidden');
     this.setStatus(t.statusReady || '● Listo para empaquetar', 'ready');
   }
@@ -402,6 +418,7 @@ class TabInstance {
     try {
       this.compressBtn.disabled = true;
       this.downloadLink.classList.add('hidden');
+      this.zipMetricsInfo.classList.add('hidden');
       this.metricsTable.classList.add('hidden');
       this.startSmashAnimation();
 
@@ -480,13 +497,22 @@ class TabInstance {
 
       await new Promise((resolve) => setTimeout(resolve, 1300));
 
-      this.mOrig.textContent = formatBytes(originalSize);
-      this.mComp.textContent = formatBytes(compressedSize);
-      this.mSaved.textContent = savedBytes > 0 ? formatBytes(savedBytes) : '0 B';
-      this.mRatio.textContent = savedBytes > 0 ? `-${ratio}%` : '0%';
-      this.mMethod.textContent = t[`${methodKey}Method`] || methodKey.toUpperCase();
-      this.mMethodTooltip.textContent = t[`${methodKey}Desc`] || '';
-      this.metricsTable.classList.remove('hidden');
+      if (this.isZipMode) {
+        // En modo ZIP únicamente mostramos el tamaño final simplificado
+        this.mCompZip.textContent = formatBytes(compressedSize);
+        this.zipMetricsInfo.classList.remove('hidden');
+        this.metricsTable.classList.add('hidden');
+      } else {
+        // En modo compresión mostramos la tabla con todas las métricas
+        this.mOrig.textContent = formatBytes(originalSize);
+        this.mComp.textContent = formatBytes(compressedSize);
+        this.mSaved.textContent = savedBytes > 0 ? formatBytes(savedBytes) : '0 B';
+        this.mRatio.textContent = savedBytes > 0 ? `-${ratio}%` : '0%';
+        this.mMethod.textContent = t[`${methodKey}Method`] || methodKey.toUpperCase();
+        this.mMethodTooltip.textContent = t[`${methodKey}Desc`] || '';
+        this.metricsTable.classList.remove('hidden');
+        this.zipMetricsInfo.classList.add('hidden');
+      }
 
       this.revokeDownloadUrl();
       this.downloadUrl = URL.createObjectURL(compressedBlob);
@@ -527,6 +553,7 @@ class TabInstance {
     this.previewContainer.innerHTML = '<span class="file-icon">📄</span>';
     this.compressBtn.disabled = true;
     this.downloadLink.classList.add('hidden');
+    this.zipMetricsInfo.classList.add('hidden');
     this.metricsTable.classList.add('hidden');
     this.setStatus(t.statusIdle || '● En espera', 'idle');
   }
