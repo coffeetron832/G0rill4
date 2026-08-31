@@ -194,12 +194,11 @@ async function compressVideoFile(file) {
   return new Blob([data.buffer], { type: 'video/mp4' });
 }
 
-// Procesa imágenes reduciendo dimensiones/calidad mediante HTML5 Canvas
 async function compressImageFile(file, quality = 0.75, maxWidth = 1920) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
-    
+
     img.onload = () => {
       URL.revokeObjectURL(url);
       let width = img.width;
@@ -511,9 +510,11 @@ class KongEngine {
   constructor() {
     this.filesList = [];
     this.generatedZipBlob = null;
+    this.isZipMode = false;
 
     this.initElements();
     this.bindEvents();
+    this.updateModeUI();
   }
 
   initElements() {
@@ -526,6 +527,12 @@ class KongEngine {
     this.initialView = document.getElementById('initialView');
     this.processView = document.getElementById('processView');
     this.downloadView = document.getElementById('downloadView');
+
+    // Opciones de Modo
+    this.switchQuestionZip = document.getElementById('switchQuestionZip');
+    this.switchQuestionCompress = document.getElementById('switchQuestionCompress');
+    this.switchToZipBtn = document.getElementById('switchToZipBtn');
+    this.switchToCompressBtn = document.getElementById('switchToCompressBtn');
 
     // Botones de Acción
     this.btnCompress = document.getElementById('btnCompress');
@@ -560,6 +567,21 @@ class KongEngine {
       });
     }
 
+    // Eventos para cambiar de modo
+    if (this.switchToZipBtn) {
+      this.switchToZipBtn.addEventListener('click', () => {
+        this.isZipMode = true;
+        this.updateModeUI();
+      });
+    }
+
+    if (this.switchToCompressBtn) {
+      this.switchToCompressBtn.addEventListener('click', () => {
+        this.isZipMode = false;
+        this.updateModeUI();
+      });
+    }
+
     if (this.btnCompress) {
       this.btnCompress.addEventListener('click', () => this.processAndZipFiles());
     }
@@ -573,8 +595,30 @@ class KongEngine {
     }
   }
 
+  updateModeUI() {
+    if (this.fileInput) {
+      if (this.isZipMode) {
+        this.fileInput.setAttribute('multiple', 'true');
+      } else {
+        this.fileInput.removeAttribute('multiple');
+      }
+    }
+
+    if (this.switchQuestionZip && this.switchQuestionCompress) {
+      if (this.isZipMode) {
+        this.switchQuestionZip.classList.add('hidden');
+        this.switchQuestionCompress.classList.remove('hidden');
+      } else {
+        this.switchQuestionZip.classList.remove('hidden');
+        this.switchQuestionCompress.classList.add('hidden');
+      }
+    }
+  }
+
   handleFileSelect(files) {
-    const validFiles = Array.from(files).filter(file => {
+    const rawFiles = this.isZipMode ? Array.from(files) : [files[0]];
+
+    const validFiles = rawFiles.filter(file => {
       if (file.size > MAX_FILE_SIZE_BYTES) {
         alert(`El archivo "${file.name}" supera el límite permitido de ${MAX_FILE_SIZE_MB}MB.`);
         return false;
@@ -584,10 +628,13 @@ class KongEngine {
 
     if (validFiles.length === 0) return;
 
-    this.filesList = [...this.filesList, ...validFiles];
+    if (this.isZipMode) {
+      this.filesList = [...this.filesList, ...validFiles];
+    } else {
+      this.filesList = [validFiles[0]];
+    }
+
     playSquishSound();
-    
-    // Soltar animación de banano
     bananaSystem.spawn(this.gorillaIcon);
 
     this.renderFileList();
@@ -725,8 +772,9 @@ class KongEngine {
     if (this.fileListContainer) this.fileListContainer.innerHTML = '';
     if (this.progressContainer) this.progressContainer.style.display = 'none';
     if (this.progressBar) this.progressBar.style.width = '0%';
-    
+
     this.switchView('initial');
+    this.updateModeUI();
   }
 }
 
