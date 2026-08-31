@@ -29,6 +29,7 @@
   <link rel="stylesheet" href="banana.css">
 
   <!-- Librerías de procesamiento -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -39,13 +40,13 @@
 
   <div class="lang-selector-container">
     <select id="langSelect" class="lang-select">
-  <option value="es" selected>Español</option>
-  <option value="en">English</option>
-  <option value="pt">Português</option>
-  <option value="fr">Français</option>
-  <option value="de">Deutsch</option>
-  <option value="it">Italiano</option>
-</select>
+      <option value="es" selected>Español</option>
+      <option value="en">English</option>
+      <option value="pt">Português</option>
+      <option value="fr">Français</option>
+      <option value="de">Deutsch</option>
+      <option value="it">Italiano</option>
+    </select>
   </div>
   
   <div class="container">
@@ -65,7 +66,7 @@
         </header>
       </aside>
 
-      <!-- Panel Derecho: Pestañas y Zona de Carga/Compresión -->
+      <!-- Panel Derecho: Pestañas y Zona de Carga/Compresión/ZIP -->
       <section class="right-panel">
         <!-- Barra de Pestañas -->
         <nav class="tabs-bar" id="tabsBar">
@@ -74,6 +75,19 @@
 
         <!-- Contenedor Principal dinámico -->
         <main id="tabContentsContainer"></main>
+
+        <!-- Preguntas de alternancia entre funciones -->
+        <div class="mode-switch-container">
+          <div id="switchQuestionZip" class="switch-option">
+            <span data-i18n="askZipMode">¿Buscas empaquetar varios archivos en un archivo comprimido?</span>
+            <button type="button" class="btn-mode-link" id="switchToZipBtn" data-i18n="btnToZip">Armar un archivo .ZIP</button>
+          </div>
+
+          <div id="switchQuestionCompress" class="switch-option hidden">
+            <span data-i18n="askCompressMode">¿Quieres reducir el tamaño o peso de un archivo individual?</span>
+            <button type="button" class="btn-mode-link" id="switchToCompressBtn" data-i18n="btnToCompress">Reducir peso de archivo</button>
+          </div>
+        </div>
       </section>
 
     </div>
