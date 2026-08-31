@@ -63,11 +63,11 @@ class TabInstance {
       <!-- Vista e insumos para la gestión de paquete ZIP -->
       <div class="zip-management-container hidden" style="margin-top: 15px; text-align: left;">
         <div class="zip-name-group" style="margin-bottom: 12px;">
-          <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Nombre del archivo ZIP:</label>
+          <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;" data-i18n="zipPackageLabel">Nombre del archivo ZIP:</label>
           <input type="text" class="zip-package-input" style="width: 100%; padding: 6px 10px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box;" placeholder="paquete.zip">
         </div>
         
-        <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 6px;">Contenido del paquete:</label>
+        <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 6px;" data-i18n="zipContentLabel">Contenido del paquete:</label>
         <div class="zip-file-list" style="max-height: 180px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; border-radius: 6px; background: #f9f9f9;"></div>
       </div>
 
@@ -121,6 +121,8 @@ class TabInstance {
     
     // Elementos de edición ZIP
     this.zipManagementContainer = this.tabBody.querySelector('.zip-management-container');
+    this.lblZipPackage = this.tabBody.querySelector('[data-i18n="zipPackageLabel"]');
+    this.lblZipContent = this.tabBody.querySelector('[data-i18n="zipContentLabel"]');
     this.zipPackageInput = this.tabBody.querySelector('.zip-package-input');
     this.zipFileList = this.tabBody.querySelector('.zip-file-list');
 
@@ -259,10 +261,17 @@ class TabInstance {
     if (askComp && t.askCompressMode) askComp.textContent = t.askCompressMode;
     if (btnComp && t.btnToCompress) btnComp.textContent = t.btnToCompress;
 
+    if (this.lblZipPackage && t.zipPackageLabel) this.lblZipPackage.textContent = t.zipPackageLabel;
+    if (this.lblZipContent && t.zipContentLabel) this.lblZipContent.textContent = t.zipContentLabel;
+
     if (this.isZipMode) {
       if (!this.selectedFiles.length) {
         this.dropText.innerHTML = t.dropTextZip || '<strong>Arrastra tus archivos aquí</strong><br>para armar un paquete .ZIP';
         this.fileName.textContent = t.noFile || 'Ningún archivo seleccionado';
+      } else {
+        const totalSize = this.selectedFiles.reduce((acc, item) => acc + item.file.size, 0);
+        const filesLabel = t.filesSelected || 'archivos seleccionados';
+        this.fileName.textContent = `${this.selectedFiles.length} ${filesLabel} (${formatBytes(totalSize)})`;
       }
       this.compressBtn.textContent = t.createZipBtn || 'Crear paquete .ZIP';
     } else {
@@ -285,7 +294,7 @@ class TabInstance {
     if (this.statusBadge.classList.contains('idle')) {
       this.statusBadge.textContent = t.statusIdle;
     } else if (this.statusBadge.classList.contains('ready')) {
-      this.statusBadge.textContent = t.statusReady;
+      this.statusBadge.textContent = this.isZipMode ? (t.statusZipReady || t.statusReady) : t.statusReady;
     } else if (this.statusBadge.classList.contains('completed')) {
       this.statusBadge.textContent = t.statusDone;
     }
@@ -347,16 +356,17 @@ class TabInstance {
     this.downloadLink.classList.add('hidden');
     this.zipMetricsInfo.classList.add('hidden');
     this.metricsTable.classList.add('hidden');
-    this.setStatus(t.statusReady || '● Listo para empaquetar', 'ready');
+    this.setStatus(t.statusZipReady || t.statusReady || '● Listo para empaquetar', 'ready');
   }
 
   async renderZipFileList() {
     this.zipFileList.innerHTML = '';
     let totalSize = 0;
+    const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
 
     if (this.selectedFiles.length === 0) {
       this.zipManagementContainer.classList.add('hidden');
-      this.fileName.textContent = 'Ningún archivo seleccionado';
+      this.fileName.textContent = t.noFile || 'Ningún archivo seleccionado';
       this.compressBtn.disabled = true;
       return;
     }
@@ -407,7 +417,8 @@ class TabInstance {
       this.generateThumbnail(item.file, previewThumb);
     });
 
-    this.fileName.textContent = `${this.selectedFiles.length} archivos seleccionados (${formatBytes(totalSize)})`;
+    const filesLabel = t.filesSelected || 'archivos seleccionados';
+    this.fileName.textContent = `${this.selectedFiles.length} ${filesLabel} (${formatBytes(totalSize)})`;
     this.tabHeader.querySelector('.tab-title').textContent = `ZIP (${this.selectedFiles.length})`;
     this.previewContainer.innerHTML = `<span class="file-icon">📦</span>`;
     this.zipManagementContainer.classList.remove('hidden');
