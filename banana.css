@@ -389,6 +389,47 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 
 .hidden { display: none !important; }
 
+/* Contenedor de preguntas al final del panel derecho */
+.mode-switch-container {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border: 1px dashed #ccc;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.switch-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.switch-option span {
+  font-size: 12px;
+  color: #555;
+  line-height: 1.35;
+}
+
+.btn-mode-link {
+  background: transparent;
+  color: #a45a2a;
+  border: none;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 2px 4px;
+  width: auto;
+  display: inline;
+}
+
+.btn-mode-link:hover {
+  background: transparent;
+  color: #6d3517;
+}
+
 /* Sticky Footer Horizontal */
 .sticky-footer {
   position: fixed;
