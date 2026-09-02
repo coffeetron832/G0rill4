@@ -816,7 +816,23 @@ function closeTab(id) {
       const nextTab = tabs[index] || tabs[index - 1];
       activateTab(nextTab.id);
     }
+
+    reindexTabTitles();
   }
+}
+
+function reindexTabTitles() {
+  const t = typeof translations !== 'undefined' && translations[currentLang] ? translations[currentLang] : {};
+  const baseTitle = t.defaultTabTitle || 'Archivo';
+
+  tabs.forEach((tab, i) => {
+    if (!tab.selectedFile && !tab.selectedFiles.length) {
+      tab.defaultTitle = `${baseTitle} ${i + 1}`;
+      tab.tabHeader.querySelector('.tab-title').textContent = tab.defaultTitle;
+    }
+  });
+
+  tabCounter = tabs.length;
 }
 
 // Attach listener to add button & trigger initial tab create
