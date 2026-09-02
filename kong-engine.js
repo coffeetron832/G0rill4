@@ -1,7 +1,11 @@
-// Worker de PDF.js
+// =============================================================================
+// 1. CONFIGURACIÓN INICIAL Y TRADUCCIONES / INITIAL CONFIG & I18N
+// =============================================================================
+
+// Worker de PDF.js / PDF.js Worker setup
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// Constantes globales de configuración
+// Constantes globales de configuración / Global configuration constants
 const MAX_FILE_SIZE_MB = 100;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -13,7 +17,10 @@ const BANANA_I18N = {
   de: 'Zieh mich zum Gorilla!'
 };
 
-// --- Web Audio API Synth (Singleton) ---
+// =============================================================================
+// 2. SINTETIZADOR DE AUDIO / WEB AUDIO API SYNTH (SINGLETON)
+// =============================================================================
+
 let audioCtx = null;
 
 function getAudioContext() {
@@ -31,7 +38,7 @@ function playSquishSound() {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
 
-    // Oscilador de Impacto
+    // Oscilador de Impacto / Impact Oscillator
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
 
@@ -48,7 +55,7 @@ function playSquishSound() {
     osc.start(now);
     osc.stop(now + 0.12);
 
-    // Ruido Blanco
+    // Ruido Blanco / White Noise
     const bufferSize = ctx.sampleRate * 0.15;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -105,11 +112,12 @@ function playEatSound() {
   }
 }
 
-// --- Helpers para compresión y procesamiento ---
+// =============================================================================
+// 3. COMPRESIÓN Y PROCESAMIENTO DE ARCHIVOS / FILE COMPRESSION & PROCESSING HELPERS
+// =============================================================================
 
 async function compressAudioFile(file, targetBitrate = 128) {
   const arrayBuffer = await file.arrayBuffer();
-  // Se reutiliza o cierra el AudioContext para liberar memoria RAM
   const ctx = getAudioContext();
   const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
@@ -122,7 +130,7 @@ async function compressAudioFile(file, targetBitrate = 128) {
   const rightSamples = numChannels > 1 ? audioBuffer.getChannelData(1) : leftSamples;
 
   const mp3Data = [];
-  const chunkSize = 1152; // Tamaño estándar de bloque MP3
+  const chunkSize = 1152;
   const leftChunkInt = new Int16Array(chunkSize);
   const rightChunkInt = new Int16Array(chunkSize);
 
@@ -130,7 +138,7 @@ async function compressAudioFile(file, targetBitrate = 128) {
 
   for (let i = 0; i < sampleLength; i += chunkSize) {
     const currentBlockSize = Math.min(chunkSize, sampleLength - i);
-    
+
     for (let j = 0; j < currentBlockSize; j++) {
       let sL = leftSamples[i + j];
       leftChunkInt[j] = sL < 0 ? sL * 32768 : sL * 32767;
@@ -214,12 +222,15 @@ async function compressImageFile(file, quality = 0.75, maxWidth = 1920) {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
 
+      // Respetar el MIME type de entrada / Respect input MIME type for JPEG/PNG
+      const targetMime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+
       canvas.toBlob(
         (blob) => {
           if (blob) resolve(blob);
           else reject(new Error('Error al comprimir la imagen.'));
         },
-        'image/jpeg',
+        targetMime,
         quality
       );
     };
@@ -233,7 +244,10 @@ async function compressImageFile(file, quality = 0.75, maxWidth = 1920) {
   });
 }
 
-// --- Clase Motor de Físicas del Banano ---
+// =============================================================================
+// 4. MOTOR DE FÍSICAS DEL BANANO / BANANA PHYSICS ENGINE CLASS
+// =============================================================================
+
 class BananaPhysics {
   constructor(canvasId, lang = 'es') {
     this.canvas = document.getElementById(canvasId);
@@ -465,10 +479,13 @@ class BananaPhysics {
   }
 }
 
-// Instancia global de la física
+// Instancia global del sistema de física / Global physics instance
 const bananaSystem = new BananaPhysics('physicsCanvas', 'es');
 
-// --- Helper Utilities ---
+// =============================================================================
+// 5. FUNCIONES UTILITARIAS / UTILITY FUNCTIONS
+// =============================================================================
+
 function sanitizeFilename(filename) {
   return filename.replace(/[^a-zA-Z0-9_.-]/g, '_');
 }
@@ -508,7 +525,10 @@ function formatBytes(bytes) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
-// --- Controlador Principal (KongEngine) ---
+// =============================================================================
+// 6. CONTROLADOR PRINCIPAL DEL APLICATIVO / MAIN APPLICATION ENGINE (KongEngine)
+// =============================================================================
+
 class KongEngine {
   constructor() {
     this.filesList = [];
@@ -526,24 +546,24 @@ class KongEngine {
     this.fileListContainer = document.getElementById('fileList');
     this.gorillaIcon = document.getElementById('gorillaIcon');
 
-    // Vistas
+    // Vistas / Views
     this.initialView = document.getElementById('initialView');
     this.processView = document.getElementById('processView');
     this.downloadView = document.getElementById('downloadView');
 
-    // Textos de dropzone
+    // Textos de dropzone / Dropzone texts
     this.dropzoneTitle = document.querySelector('#dropzone [data-i18n="dragDropTitle"]') || document.querySelector('#dropzone h3');
     this.dropzoneSubtitle = document.querySelector('#dropzone [data-i18n="dragDropSubtitle"]') || document.querySelector('#dropzone p');
     this.dropzoneIcon = document.querySelector('#dropzone .dropzone-icon');
     this.processTitle = document.querySelector('#processView h2');
 
-    // Modos
+    // Modos / Modes
     this.switchQuestionZip = document.getElementById('switchQuestionZip');
     this.switchQuestionCompress = document.getElementById('switchQuestionCompress');
     this.switchToZipBtn = document.getElementById('switchToZipBtn');
     this.switchToCompressBtn = document.getElementById('switchToCompressBtn');
 
-    // Botones
+    // Botones e interfaz / Buttons & UI components
     this.btnAddMore = document.getElementById('btnAddMore');
     this.btnCompress = document.getElementById('btnCompress');
     this.btnDownload = document.getElementById('btnDownload');
@@ -589,7 +609,7 @@ class KongEngine {
       this.btnAddMore.addEventListener('click', () => this.fileInput.click());
     }
 
-    // Delegación de Eventos para eliminar ítems de la lista
+    // Delegación de eventos para eliminar ítems / Event delegation for item removal
     if (this.fileListContainer) {
       this.fileListContainer.addEventListener('click', (e) => {
         const removeBtn = e.target.closest('.btn-remove');
@@ -753,6 +773,11 @@ class KongEngine {
         } else if (file.type.startsWith('video/')) {
           processedBlob = await compressVideoFile(file);
         }
+
+        // Validación de seguridad / Safety fallback if compressed file is larger
+        if (processedBlob.size >= file.size) {
+          processedBlob = file;
+        }
       } catch (err) {
         console.warn(`Fallback al archivo original para ${file.name}:`, err);
       }
@@ -822,7 +847,10 @@ class KongEngine {
   }
 }
 
-// Inicialización
+// =============================================================================
+// 7. INICIALIZACIÓN DE LA APLICACIÓN / APPLICATION INITIALIZATION
+// =============================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
   window.kongEngine = new KongEngine();
 });
