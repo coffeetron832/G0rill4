@@ -1,4 +1,8 @@
-// --- Elementos del DOM ---
+// =============================================================================
+// 1. DOM ELEMENTS & STATE / GLOBAL VARIABLES
+// 1. Elementos del DOM y Estado / Variables Globales
+// =============================================================================
+
 const tabsBar = document.getElementById('tabsBar');
 const addTabBtn = document.getElementById('addTabBtn');
 const tabContentsContainer = document.getElementById('tabContentsContainer');
@@ -7,13 +11,19 @@ let tabs = [];
 let activeTabId = null;
 let tabCounter = 0;
 
+
+// =============================================================================
+// 2. TAB INSTANCE CLASS (CORE LOGIC)
+// 2. Clase TabInstance (Lógica Principal)
+// =============================================================================
+
 class TabInstance {
   constructor(id, title) {
     this.id = id;
     this.defaultTitle = title;
     this.title = title;
     this.selectedFile = null;
-    this.selectedFiles = []; // Para empaquetado ZIP: [{ file: File, customName: string }]
+    this.selectedFiles = []; // Para empaquetado ZIP / For ZIP packaging: [{ file: File, customName: string }]
     this.zipPackageName = 'paquete.zip';
     this.isZipMode = false;
     this.previewUrl = null;
@@ -26,6 +36,10 @@ class TabInstance {
     this.bindEvents();
     this.updateLanguage();
   }
+
+  // ---------------------------------------------------------------------------
+  // 2.1 DOM Rendering / Renderizado en el DOM
+  // ---------------------------------------------------------------------------
 
   renderTabHeader() {
     this.tabHeader = document.createElement('div');
@@ -111,7 +125,7 @@ class TabInstance {
     `;
     tabContentsContainer.appendChild(this.tabBody);
 
-    // Mapeo de elementos DOM de la pestaña
+    // Mapeo de elementos DOM de la pestaña / DOM element mapping for the tab
     this.switchZipBox = this.tabBody.querySelector('.switch-question-zip');
     this.switchCompressBox = this.tabBody.querySelector('.switch-question-compress');
     this.fileInput = this.tabBody.querySelector('.file-input');
@@ -119,7 +133,7 @@ class TabInstance {
     this.dropText = this.tabBody.querySelector('.drop-text');
     this.fileName = this.tabBody.querySelector('.file-name');
     
-    // Elementos de edición ZIP
+    // Elementos de edición ZIP / ZIP editing elements
     this.zipManagementContainer = this.tabBody.querySelector('.zip-management-container');
     this.lblZipPackage = this.tabBody.querySelector('[data-i18n="zipPackageLabel"]');
     this.lblZipContent = this.tabBody.querySelector('[data-i18n="zipContentLabel"]');
@@ -132,12 +146,12 @@ class TabInstance {
     this.statusLabel = this.tabBody.querySelector('.status-label');
     this.statusBadge = this.tabBody.querySelector('.status-badge');
     
-    // Elementos ZIP reducidos
+    // Elementos ZIP reducidos / Reduced ZIP metrics elements
     this.zipMetricsInfo = this.tabBody.querySelector('.zip-metrics-info');
     this.lblMCompZip = this.tabBody.querySelector('.lbl-m-comp-zip');
     this.mCompZip = this.tabBody.querySelector('.m-comp-zip');
 
-    // Métricas para compresión estándar
+    // Métricas para compresión estándar / Standard compression metrics
     this.metricsTable = this.tabBody.querySelector('.metrics-table');
     this.lblMOrig = this.tabBody.querySelector('.lbl-m-orig');
     this.lblMComp = this.tabBody.querySelector('.lbl-m-comp');
@@ -152,6 +166,10 @@ class TabInstance {
     this.mMethodTooltip = this.tabBody.querySelector('.tooltip-text');
     this.downloadLink = this.tabBody.querySelector('.download-link');
   }
+
+  // ---------------------------------------------------------------------------
+  // 2.2 Event Listeners & Binding / Vinculación de Eventos
+  // ---------------------------------------------------------------------------
 
   bindEvents() {
     if (this.switchZipBox) {
@@ -202,13 +220,13 @@ class TabInstance {
       }
     });
 
-    // Control del input para el nombre del paquete ZIP
+    // Control del input para el nombre del paquete ZIP / Control for ZIP package name input
     this.zipPackageInput.addEventListener('input', (e) => {
       let val = e.target.value.trim();
       this.zipPackageName = val.length > 0 ? val : 'paquete.zip';
     });
 
-    // Eventos delegados dentro de la lista de archivos ZIP (renombrar conservando la extensión/eliminar)
+    // Eventos delegados dentro de la lista ZIP / Delegated events inside ZIP file list
     this.zipFileList.addEventListener('input', (e) => {
       if (e.target.classList.contains('zip-item-rename')) {
         const index = parseInt(e.target.getAttribute('data-index'), 10);
@@ -229,6 +247,10 @@ class TabInstance {
 
     this.compressBtn.addEventListener('click', () => this.processCompression());
   }
+
+  // ---------------------------------------------------------------------------
+  // 2.3 Mode & i18n Handlers / Gestión de Modos e Internacionalización
+  // ---------------------------------------------------------------------------
 
   setMode(isZip) {
     this.isZipMode = isZip;
@@ -331,6 +353,10 @@ class TabInstance {
     return name;
   }
 
+  // ---------------------------------------------------------------------------
+  // 2.4 ZIP Mode Logic & Management / Lógica y Gestión de Modo ZIP
+  // ---------------------------------------------------------------------------
+
   handleMultipleFilesSelect(fileList) {
     const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
     const files = Array.from(fileList);
@@ -374,7 +400,7 @@ class TabInstance {
     this.selectedFiles.forEach((item, idx) => {
       totalSize += item.file.size;
 
-      // Extraer nombre base y extensión
+      // Extraer nombre base y extensión / Extract base name and extension
       const fullCustomName = item.customName || item.file.name;
       const lastDotIndex = fullCustomName.lastIndexOf('.');
       let baseName = fullCustomName;
@@ -388,12 +414,12 @@ class TabInstance {
       const row = document.createElement('div');
       row.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 6px;';
       
-      // Contenedor de vista previa
+      // Contenedor de vista previa / Preview container thumbnail
       const previewThumb = document.createElement('div');
       previewThumb.style.cssText = 'width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; background: #eee; border: 1px solid #ccc; font-size: 14px;';
       row.appendChild(previewThumb);
 
-      // Input de edición (solo el nombre sin la extensión)
+      // Input de edición (solo el nombre sin la extensión) / Rename input (base name only)
       const inputGroup = document.createElement('div');
       inputGroup.style.cssText = 'flex: 1; display: flex; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 0 4px; overflow: hidden;';
       inputGroup.innerHTML = `
@@ -402,7 +428,7 @@ class TabInstance {
       `;
       row.appendChild(inputGroup);
 
-      // Tamaño y acción de eliminar
+      // Tamaño y acción de eliminar / Size and delete action
       const sizeAndAction = document.createElement('div');
       sizeAndAction.style.cssText = 'display: flex; align-items: center; gap: 6px;';
       sizeAndAction.innerHTML = `
@@ -413,7 +439,7 @@ class TabInstance {
 
       this.zipFileList.appendChild(row);
 
-      // Renderizado dinámico de la miniatura de vista previa
+      // Renderizado dinámico de la miniatura de vista previa / Dynamic thumbnail rendering
       this.generateThumbnail(item.file, previewThumb);
     });
 
@@ -467,6 +493,10 @@ class TabInstance {
     this.selectedFiles.splice(index, 1);
     this.renderZipFileList();
   }
+
+  // ---------------------------------------------------------------------------
+  // 2.5 Single File Logic & Previews / Selección de Archivo Único y Vistas Previas
+  // ---------------------------------------------------------------------------
 
   revokePreviewUrl() {
     if (this.previewUrl) {
@@ -559,6 +589,10 @@ class TabInstance {
   renderEmojiFallback(file) {
     this.previewContainer.innerHTML = `<span class="file-icon">${getFileEmoji(file)}</span>`;
   }
+
+  // ---------------------------------------------------------------------------
+  // 2.6 Animations & Compression Processing / Animaciones y Procesamiento
+  // ---------------------------------------------------------------------------
 
   startSmashAnimation() {
     this.crushStage.classList.add('smash-active');
@@ -703,6 +737,10 @@ class TabInstance {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // 2.7 Lifecycle Cleanup / Limpieza y Destrucción de la Instancia
+  // ---------------------------------------------------------------------------
+
   reset() {
     const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
     this.stopSmashAnimation();
@@ -734,7 +772,12 @@ class TabInstance {
   }
 }
 
-// --- Funciones de navegación de Pestañas ---
+
+// =============================================================================
+// 3. TAB NAVIGATION FUNCTIONS & INITIALIZATION
+// 3. Funciones de Navegación de Pestañas e Inicialización
+// =============================================================================
+
 function createTab() {
   tabCounter++;
   const t = typeof translations !== 'undefined' && translations[currentLang] ? translations[currentLang] : {};
@@ -776,7 +819,7 @@ function closeTab(id) {
   }
 }
 
+// Attach listener to add button & trigger initial tab create
+// Asignar escuchador al botón de añadir e inicializar la primera pestaña
 addTabBtn.addEventListener('click', createTab);
-
-// Inicializar la primera pestaña
 createTab();
