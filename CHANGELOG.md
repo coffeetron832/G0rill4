@@ -1,4 +1,8 @@
-## 1.4.0 (2026-11-25)
+## 1.4.1
+- Corrección: la compresión de video no funcionaba por la política de contenido (CSP), que bloqueaba la carga del núcleo de FFmpeg.
+- El núcleo de FFmpeg se carga desde unpkg.com.
+
+# 1.4.0 (2026-11-25)
 - Compression level selector with per-file analysis (only levels that reduce file size).
 - PNG compression in Web Worker with SHA-384 verification of the libraries.
 - Limits on video size (60 MB) and image pixel count, plus specific error messages.

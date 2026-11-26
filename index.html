@@ -6,14 +6,14 @@
 
   <!-- Política de contenido: solo se permiten los orígenes que usa la página.
        Si FFmpeg falla con un error de WebAssembly, añade 'wasm-unsafe-eval' a script-src. -->
-  <meta http-equiv="Content-Security-Policy"
+    <meta http-equiv="Content-Security-Policy"
     content="default-src 'self';
-             script-src 'self' 'sha256-lfZHEt1P8LPhZtSI4cfST6XSLmd8fy65mn7FvYpMrh8=' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com;
+             script-src 'self' 'wasm-unsafe-eval' 'sha256-lfZHEt1P8LPhZtSI4cfST6XSLmd8fy65mn7FvYpMrh8=' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com;
              style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
              font-src 'self' https://fonts.gstatic.com;
              img-src 'self' blob: data:;
              media-src 'self' blob:;
-             connect-src 'self' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
+             connect-src 'self' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com;
              worker-src 'self' blob:;
              object-src 'none';
              base-uri 'self';
@@ -238,7 +238,7 @@
   <footer class="sticky-footer">
     <a href="https://github.com/coffeetron832/G0rill4" target="_blank" rel="noopener noreferrer" class="footer-link">G0rill4<span class="sr-only" id="newTabNote">(opens in a new tab)</span></a>
     <span class="dot-separator">|</span>
-    <span>v1.4.0</span>
+    <span>v1.4.1</span>
     <span class="dot-separator">|</span>
     <span>&copy; 2026 jahp.</span>
     <span class="dot-separator">|</span>
