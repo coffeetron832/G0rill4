@@ -1,4 +1,8 @@
-## 1.4.1
+# 1.4.2 (2026-11-26)
+- Video removed: MP4 and WEBM files are no longer accepted, since the in-browser video engine (FFmpeg) was not reliable.
+- FFmpeg is no longer loaded by the page, so `unpkg.com` is no longer needed for video, and the content security policy is stricter.
+
+## 1.4.1 (2026-11-25)
 - Corrección: la compresión de video no funcionaba por la política de contenido (CSP), que bloqueaba la carga del núcleo de FFmpeg.
 - El núcleo de FFmpeg se carga desde unpkg.com.
 

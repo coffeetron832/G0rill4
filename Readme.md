@@ -4,9 +4,9 @@
 
 <div align="center">
 
-![Privacy](https://img.shields.io/badge/Privacy-Zero_Server-brightgreen)
-![Version](https://img.shields.io/badge/version-1.4.1-blue)
-![License](https://img.shields.io/badge/license-MIT-yellow)
+![Privacy](https://img.shields.io/badge/Privacy-Zero_Server-brown)
+![Version](https://img.shields.io/badge/version-1.4.2-brown)
+![License](https://img.shields.io/badge/license-MIT-brown)
 ![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=for-the-badge&logo=javascript&logoColor=%23F7DF1E)
 
 </div>

@@ -9,18 +9,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 const MAX_FILE_SIZE_MB = 100;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// El video se procesa en memoria dentro del navegador: el límite es más bajo
-const MAX_VIDEO_SIZE_MB = 60;
-const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
-
-// Tiempo máximo por video antes de liberar la cola. Ajústalo con tus pruebas.
-const VIDEO_TIMEOUT_MS = 5 * 60 * 1000;
-
-// Parámetros de cada nivel de compresión (los usan imágenes, audio y video)
+// Parámetros de cada nivel de compresión (los usan imágenes y audio)
 const LEVEL_PARAMS = {
-  light:    { imgQuality: 0.85, imgMaxSide: 2560, audioKbps: 192, videoCrf: 23, videoMaxW: 1080 },
-  balanced: { imgQuality: 0.7,  imgMaxSide: 1920, audioKbps: 128, videoCrf: 28, videoMaxW: 720 },
-  strong:   { imgQuality: 0.5,  imgMaxSide: 1280, audioKbps: 96,  videoCrf: 32, videoMaxW: 480 }
+  light:    { imgQuality: 0.85, imgMaxSide: 2560, audioKbps: 192 },
+  balanced: { imgQuality: 0.7,  imgMaxSide: 1920, audioKbps: 128 },
+  strong:   { imgQuality: 0.5,  imgMaxSide: 1280, audioKbps: 96 }
 };
 
 const BANANA_I18N = {
@@ -76,7 +69,7 @@ function playEatSound() {
 }
 
 // =============================================================================
-// 3. COMPRESIÓN DE AUDIO Y VIDEO / AUDIO & VIDEO COMPRESSION HELPERS
+// 3. COMPRESIÓN DE AUDIO / AUDIO COMPRESSION HELPERS
 // =============================================================================
 
 // onProgress recibe un número de 0 a 1 mientras codifica
@@ -133,122 +126,6 @@ async function compressAudioFile(file, targetBitrate = 128, onProgress = () => {
   if (endBuf.length > 0) mp3Data.push(endBuf);
 
   return new Blob(mp3Data, { type: 'audio/mp3' });
-}
-
-// ----- Motor de video (FFmpeg) -----
-// Un solo motor compartido: se carga la primera vez y las tareas van en fila,
-// porque FFmpeg no puede ejecutar dos trabajos a la vez.
-
-let ffmpegInstance = null;
-let ffmpegLoading = null;
-let videoQueue = Promise.resolve();
-let videoJobsPending = 0;
-let currentVideoProgress = null;
-
-function getFFmpeg() {
-  if (ffmpegInstance) return Promise.resolve(ffmpegInstance);
-
-  if (!ffmpegLoading) {
-    ffmpegLoading = (async () => {
-      const { createFFmpeg } = FFmpeg;
-      const ff = createFFmpeg({ log: false });
-
-      ff.setProgress(({ ratio }) => {
-        if (!currentVideoProgress) return;
-        const value = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : null;
-        currentVideoProgress(value);
-      });
-
-      await ff.load();
-      ffmpegInstance = ff;
-      return ff;
-    })().catch((err) => {
-      // Si la carga falla, se permite reintentar en la siguiente tarea
-      ffmpegLoading = null;
-      throw err;
-    });
-  }
-
-  return ffmpegLoading;
-}
-
-function inputExtension(name) {
-  const match = name.match(/\.([a-z0-9]+)$/i);
-  return match ? match[1].toLowerCase() : 'mp4';
-}
-
-async function runVideoCompression(file, onProgress, level) {
-  if (!ffmpegInstance) onProgress({ phase: 'loading' });
-  const ff = await getFFmpeg();
-  const { fetchFile } = FFmpeg;
-  const p = LEVEL_PARAMS[level] || LEVEL_PARAMS.balanced;
-
-  // Nombres internos fijos: evita caracteres problemáticos del nombre original
-  const id = Date.now();
-  const inputName = `input_${id}.${inputExtension(file.name)}`;
-  const outputName = `output_${id}.mp4`;
-
-  onProgress({ phase: 'video', ratio: null });
-  currentVideoProgress = (ratio) => onProgress({ ratio });
-
-  try {
-    ff.FS('writeFile', inputName, await fetchFile(file));
-
-    await ff.run(
-      '-i', inputName,
-      '-vf', `scale='min(${p.videoMaxW},iw)':-2`,
-      '-crf', String(p.videoCrf),
-      '-preset', 'ultrafast',
-      '-pix_fmt', 'yuv420p', // formato de color que reproducen todos los navegadores
-      outputName
-    );
-
-    const data = ff.FS('readFile', outputName);
-    return new Blob([data], { type: 'video/mp4' });
-  } finally {
-    currentVideoProgress = null;
-    for (const name of [inputName, outputName]) {
-      try { ff.FS('unlink', name); } catch (_) { /* ya no existe */ }
-    }
-  }
-}
-
-// Corta una promesa si tarda más de `ms` milisegundos
-function withTimeout(promise, ms) {
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => {
-      const err = new Error('video-timeout');
-      err.code = 'VIDEO_TIMEOUT';
-      reject(err);
-    }, ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
-// Encola la tarea: si hay otra en curso, avisa con la fase "queued".
-// Si una tarea supera VIDEO_TIMEOUT_MS, se libera la cola y el motor se recarga en el próximo uso.
-function compressVideoFile(file, onProgress = () => {}, level = 'balanced') {
-  if (videoJobsPending > 0) onProgress({ phase: 'queued' });
-  videoJobsPending++;
-
-  const job = videoQueue.then(() =>
-    withTimeout(runVideoCompression(file, onProgress, level), VIDEO_TIMEOUT_MS)
-      .catch((err) => {
-        if (err && err.code === 'VIDEO_TIMEOUT') {
-          // El motor puede seguir ocupado: se descarta y se carga de nuevo
-          ffmpegInstance = null;
-          ffmpegLoading = null;
-        }
-        throw err;
-      })
-  );
-
-  videoQueue = job.then(() => {}, () => {}).finally(() => {
-    videoJobsPending--;
-  });
-
-  return job;
 }
 
 // =============================================================================

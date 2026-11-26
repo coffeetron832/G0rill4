@@ -476,15 +476,11 @@ class TabInstance {
     if (job !== this.jobId) return;
 
     const labels = {
-      queued: i18n('queued'),
-      loading: i18n('loadingEngine'),
-      audio: i18n('statusEncodingAudio'),
-      video: i18n('statusEncodingVideo')
+      audio: i18n('statusEncodingAudio')
     };
     if (update.phase && labels[update.phase]) this.setStatus(labels[update.phase]);
 
-    const waiting = update.phase === 'queued' || update.phase === 'loading';
-    if (waiting || update.ratio == null) {
+    if (update.ratio == null) {
       this.showProgress(null);
     } else {
       this.showProgress(update.ratio);
@@ -516,10 +512,6 @@ class TabInstance {
     }
     if (file.size > MAX_FILE_SIZE_BYTES) {
       this.showError(i18n('limitError'));
-      return;
-    }
-    if (detectKind(file) === 'video' && file.size > MAX_VIDEO_SIZE_BYTES) {
-      this.showError(i18n('videoTooLarge'));
       return;
     }
 

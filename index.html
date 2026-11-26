@@ -4,16 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Política de contenido: solo se permiten los orígenes que usa la página.
-       Si FFmpeg falla con un error de WebAssembly, añade 'wasm-unsafe-eval' a script-src. -->
-    <meta http-equiv="Content-Security-Policy"
+  <!-- Política de contenido: solo se permiten los orígenes que usa la página. -->
+  <meta http-equiv="Content-Security-Policy"
     content="default-src 'self';
-             script-src 'self' 'wasm-unsafe-eval' 'sha256-lfZHEt1P8LPhZtSI4cfST6XSLmd8fy65mn7FvYpMrh8=' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com;
+             script-src 'self' 'sha256-lfZHEt1P8LPhZtSI4cfST6XSLmd8fy65mn7FvYpMrh8=' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com;
              style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
              font-src 'self' https://fonts.gstatic.com;
              img-src 'self' blob: data:;
              media-src 'self' blob:;
-             connect-src 'self' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com;
+             connect-src 'self' blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
              worker-src 'self' blob:;
              object-src 'none';
              base-uri 'self';
@@ -72,8 +71,6 @@
     integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"
     integrity="sha384-xuasJXVcyv3hZq0eYpelEkBC8l4yufatZXDsKuyCU2rqfhDCb+ftuE/mSfZAteiK" crossorigin="anonymous"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"
-    integrity="sha384-m5or9sW5FUT2WQbj3UthGceVpwo9zSgHKdCugYKHl19lyXPvwO/oQcmq8Fw0FfaA" crossorigin="anonymous"></script>
 
   <!-- Iconos Lucide -->
   <script defer src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"
@@ -145,7 +142,7 @@
 
       <div class="drop-zone" data-state="idle" tabindex="-1">
         <input type="file" class="file-input" hidden
-          accept=".jpg,.jpeg,.png,.webp,.pdf,.mp3,.wav,.mp4,.webm,.svg,.json,.csv,.txt">
+          accept=".jpg,.jpeg,.png,.webp,.pdf,.mp3,.wav,.svg,.json,.csv,.txt">
 
         <!-- Estado 1: Esperando archivo -->
         <div class="drop-state state-idle">
@@ -178,7 +175,7 @@
           </div>
           <p class="processing-text" role="status"></p>
 
-          <!-- Barra de progreso: solo aparece en video y audio -->
+          <!-- Barra de progreso (se usa solo en audio) -->
           <div class="progress" hidden>
             <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
               <div class="progress-fill"></div>
@@ -238,7 +235,7 @@
   <footer class="sticky-footer">
     <a href="https://github.com/coffeetron832/G0rill4" target="_blank" rel="noopener noreferrer" class="footer-link">G0rill4<span class="sr-only" id="newTabNote">(opens in a new tab)</span></a>
     <span class="dot-separator">|</span>
-    <span>v1.4.1</span>
+    <span>v1.4.2</span>
     <span class="dot-separator">|</span>
     <span>&copy; 2026 jahp.</span>
     <span class="dot-separator">|</span>

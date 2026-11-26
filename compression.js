@@ -1,12 +1,12 @@
 // =============================================================================
 // COMPRESIÓN Y LÓGICA DE TIPOS / COMPRESSION & FILE TYPES
 // Los textos viven en uhoh-ah-ah.js (translations) y se leen con i18n().
-// Audio y video (compressAudioFile, compressVideoFile) y LEVEL_PARAMS están en kong-engine.js.
+// Audio (compressAudioFile) y LEVEL_PARAMS están en kong-engine.js.
 // PNG se codifica en image-worker.js (fuera del hilo principal) y tiene respaldo local.
 // Orden de carga: uhoh-ah-ah.js → kong-engine.js → compression.js → silverblack.js
 // =============================================================================
 
-const SUPPORTED_FORMATS = ['JPG', 'PNG', 'WEBP', 'PDF', 'MP3', 'WAV', 'MP4', 'WEBM', 'SVG', 'JSON', 'CSV', 'TXT'];
+const SUPPORTED_FORMATS = ['JPG', 'PNG', 'WEBP', 'PDF', 'MP3', 'WAV', 'SVG', 'JSON', 'CSV', 'TXT'];
 
 const FORMAT_ICONS = {
   JPG: 'image',
@@ -15,8 +15,6 @@ const FORMAT_ICONS = {
   PDF: 'file-text',
   MP3: 'music',
   WAV: 'music',
-  MP4: 'video',
-  WEBM: 'video',
   SVG: 'file-code',
   JSON: 'file-json',
   CSV: 'file-spreadsheet',
@@ -29,8 +27,6 @@ const EXT_BY_TYPE = {
   'audio/wav': 'wav',
   'audio/wave': 'wav',
   'audio/x-wav': 'wav',
-  'video/mp4': 'mp4',
-  'video/webm': 'webm',
   'application/pdf': 'pdf',
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -56,7 +52,7 @@ const LEVEL_STORAGE_KEY = 'gorilla-level';
 // Tipos donde el nivel sí cambia el resultado: se prueban los tres y solo se habilitan los que reducen
 const LEVEL_AWARE_KINDS = ['image'];
 // Tipos donde probar los tres niveles sería muy costoso: se comprime solo al pulsar el botón
-const DEFERRED_KINDS = ['audio', 'video'];
+const DEFERRED_KINDS = ['audio'];
 
 function getLevel() {
   try {
@@ -128,7 +124,6 @@ function detectKind(file) {
   if (['jpg', 'png', 'webp'].includes(fmt) || type.startsWith('image/')) return 'image';
   if (fmt === 'pdf' || type === 'application/pdf') return 'pdf';
   if (['mp3', 'wav'].includes(fmt) || type.startsWith('audio/')) return 'audio';
-  if (['mp4', 'webm'].includes(fmt) || type.startsWith('video/')) return 'video';
   if (fmt === 'json' || type === 'application/json') return 'json';
   if (['csv', 'txt'].includes(fmt) || type.startsWith('text/')) return 'text';
   return null;
@@ -165,7 +160,6 @@ function getFileIcon(file) {
   if (fmt === 'svg') return 'file-code';
   if (kind === 'text') return 'file-text';
   if (kind === 'audio') return 'music';
-  if (kind === 'video') return 'video';
 
   return 'file';
 }
@@ -174,7 +168,6 @@ function friendlyError(err) {
   if (err && err.code === 'UNSUPPORTED') return i18n('unsupportedError');
   if (err && err.code === 'TOO_LARGE_IMAGE') return i18n('imageTooLarge');
   if (err && err.code === 'EMPTY_RESULT') return i18n('emptyResult');
-  if (err && err.code === 'VIDEO_TIMEOUT') return i18n('videoTimeout');
   if (/encrypted/i.test(String(err && err.message))) return i18n('encryptedPdf');
   return i18n('genericError');
 }
@@ -183,8 +176,7 @@ function fileNote(file) {
   switch (detectKind(file)) {
     case 'image': return isPngFile(file) ? i18n('noteLossless') : i18n('noteLossy');
     case 'pdf': return i18n('notePdf');
-    case 'audio':
-    case 'video': return i18n('noteMedia');
+    case 'audio': return i18n('noteMedia');
     case 'json':
     case 'svg':
     case 'text': return i18n('noteText');
@@ -463,7 +455,6 @@ async function compressFile(file, onProgress = () => {}, level = getLevel()) {
     case 'audio':
       onProgress({ phase: 'audio' });
       return compressAudioFile(file, p.audioKbps, (ratio) => onProgress({ ratio }));
-    case 'video': return compressVideoFile(file, onProgress, level);
     case 'json': return compressJson(file);
     case 'svg': return compressSvg(file);
     case 'text': return compressText(file);
@@ -477,7 +468,7 @@ async function compressFile(file, onProgress = () => {}, level = getLevel()) {
 
 // Decide qué niveles mostrar según el tipo de archivo:
 // - 'probed': imagen; se prueba cada nivel y solo se habilitan los que reducen de verdad.
-// - 'deferred': audio/video; se habilitan los tres y se comprime al pulsar el botón.
+// - 'deferred': audio; se habilitan los tres y se comprime al pulsar el botón.
 // - 'none': PDF, JSON, SVG, TXT, CSV; el nivel no cambia nada, así que no hay selector.
 async function probeCompressionLevels(file, isCancelled = () => false) {
   const kind = detectKind(file);
