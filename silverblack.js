@@ -1,502 +1,745 @@
 // =============================================================================
-// 1. DOM ELEMENTS & STATE / GLOBAL VARIABLES
-// 1. Elementos del DOM y Estado / Variables Globales
+// PESTAÑAS E INTERFAZ / TABS & UI
+// Requiere uhoh-ah-ah.js (textos), kong-engine.js y compression.js.
 // =============================================================================
 
-const tabsBar = document.getElementById('tabsBar');
+const tabList = document.getElementById('tabList');
 const addTabBtn = document.getElementById('addTabBtn');
 const tabContentsContainer = document.getElementById('tabContentsContainer');
+const tabTemplate = document.getElementById('tabTemplate');
+const formatsLabel = document.getElementById('formatsLabel');
+const formatsList = document.getElementById('formatsList');
+const formatsMax = document.getElementById('formatsMax');
+const skipLink = document.getElementById('skipLink');
+const langLabel = document.getElementById('langLabel');
+const newTabNote = document.getElementById('newTabNote');
 
 let tabs = [];
 let activeTabId = null;
-let tabCounter = 0;
+let tabSeq = 0;
 
+const BANANA_DELAY_MS = 250;
+const FEED_FINISH_DELAY_MS = 450;
+const SMASH_MIN_MS = 1950;
 
-// =============================================================================
-// 2. TAB INSTANCE CLASS (CORE LOGIC)
-// 2. Clase TabInstance (Lógica Principal)
-// =============================================================================
+// Circunferencia del anillo (r = 52): 2 × π × 52
+const RING_CIRCUMFERENCE = 326.73;
+
+// Enlaces oficiales de compartir (solo se abren al pulsar; no se carga ningún script externo)
+const SHARE_URLS = {
+  whatsapp: (text, url) => `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`,
+  x: (text, url) => `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+  facebook: (text, url) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+  linkedin: (text, url) => `https://www.linkedin.com/sharing/share-offer/?url=${encodeURIComponent(url)}`
+};
+
+const LEVEL_TEXT_KEYS = {
+  light: { label: 'levelLight', desc: 'levelLightDesc' },
+  balanced: { label: 'levelBalanced', desc: 'levelBalancedDesc' },
+  strong: { label: 'levelStrong', desc: 'levelStrongDesc' }
+};
 
 class TabInstance {
-  constructor(id, title) {
+  constructor(id) {
     this.id = id;
-    this.defaultTitle = title;
-    this.title = title;
+    this.alive = true;
     this.selectedFile = null;
-    this.selectedFiles = []; // Para empaquetado ZIP / For ZIP packaging: [{ file: File, customName: string }]
-    this.zipPackageName = 'paquete.zip';
-    this.isZipMode = false;
+    this.state = 'idle';
+    this.busy = false;
+    this.analyzing = false;
+    this.jobId = 0;
+    this.probeId = 0;
+    this.feedToken = 0;
+    this.isActive = false;
     this.previewUrl = null;
     this.downloadUrl = null;
-    this.squishInterval = null;
-    this.lastMethodKey = null;
+    this.lastResult = null;
+    this.levelMode = 'none';
+    this.enabledLevels = [...LEVEL_KEYS];
+    this.cachedResults = {};
 
-    this.renderTabHeader();
-    this.renderTabBody();
+    this.endSmash = () => {
+      this.crushStage.classList.remove('smash-active');
+      this.crushStage.removeEventListener('animationiteration', this.endSmash);
+    };
+
+    this.renderHeader();
+    this.renderBody();
     this.bindEvents();
-    this.updateLanguage();
+    this.reset();
   }
 
-  // ---------------------------------------------------------------------------
-  // 2.1 DOM Rendering / Renderizado en el DOM
-  // ---------------------------------------------------------------------------
+  get defaultTitle() {
+    const pos = tabs.indexOf(this);
+    const number = (pos >= 0 ? pos : tabs.length) + 1;
+    return `${i18n('defaultTabTitle') || 'File'} ${number}`;
+  }
 
-  renderTabHeader() {
-    this.tabHeader = document.createElement('div');
-    this.tabHeader.className = 'tab-btn';
-    this.tabHeader.innerHTML = `
-      <span class="tab-title">${escapeHTML(this.title)}</span>
-      <span class="tab-close">✕</span>
+  renderHeader() {
+    this.header = document.createElement('div');
+    this.header.className = 'tab-btn';
+    this.header.innerHTML = `
+      <button type="button" class="tab-title" role="tab" aria-selected="false" tabindex="-1"></button>
+      <button type="button" class="tab-close"><i data-lucide="x" aria-hidden="true"></i></button>
     `;
-    tabsBar.insertBefore(this.tabHeader, addTabBtn);
+    this.tabBtn = this.header.querySelector('.tab-title');
+    this.closeBtn = this.header.querySelector('.tab-close');
+    this.tabBtn.id = `${this.id}-tab`;
+    tabList.appendChild(this.header);
   }
 
-  renderTabBody() {
-    this.tabBody = document.createElement('div');
-    this.tabBody.className = 'box hidden';
-    this.tabBody.innerHTML = `
-      <!-- Selector de modo embebido en cada pestaña -->
-      <div class="mode-switch-container">
-        <div class="switch-option switch-question-zip">
-          <span data-i18n="askZipMode">¿Buscas empaquetar varios archivos en un archivo comprimido?</span>
-          <button type="button" class="btn-mode-link btn-to-zip" data-i18n="btnToZip">Armar un archivo .ZIP</button>
-        </div>
+  renderBody() {
+    this.body = tabTemplate.content.firstElementChild.cloneNode(true);
+    this.body.id = `${this.id}-panel`;
+    this.body.setAttribute('aria-labelledby', this.tabBtn.id);
+    tabContentsContainer.appendChild(this.body);
 
-        <div class="switch-option switch-question-compress hidden">
-          <span data-i18n="askCompressMode">¿Quieres reducir el tamaño o peso de un archivo individual?</span>
-          <button type="button" class="btn-mode-link btn-to-compress" data-i18n="btnToCompress">Reducir peso de archivo</button>
-        </div>
-      </div>
+    this.zone = this.body.querySelector('.drop-zone');
+    this.fileInput = this.body.querySelector('.file-input');
+    this.stateIdle = this.body.querySelector('.state-idle');
+    this.stateProcessing = this.body.querySelector('.state-processing');
+    this.chooseBtn = this.body.querySelector('.choose-btn');
+    this.compressBtn = this.body.querySelector('.compress-btn');
+    this.dropTitle = this.body.querySelector('.drop-title');
+    this.dropSubtitle = this.body.querySelector('.drop-subtitle');
+    this.levelGroup = this.body.querySelector('.level-group');
+    this.levelBtns = [...this.body.querySelectorAll('.level-btn')];
+    this.errorText = this.body.querySelector('.error-text');
+    this.idleGorilla = this.body.querySelector('.idle-gorilla');
+    this.crushStage = this.body.querySelector('.crush-stage');
+    this.previewContainer = this.body.querySelector('.file-preview-container');
+    this.statusText = this.body.querySelector('.processing-text');
 
-      <input type="file" class="file-input" hidden>
-      <div class="drop-zone">
-        <p class="drop-text"><strong>Arrastra un archivo aquí</strong><br>o haz clic para seleccionar</p>
-      </div>
-      <span class="file-name">Ningún archivo seleccionado</span>
+    this.progressEl = this.body.querySelector('.progress');
+    this.progressTrack = this.body.querySelector('.progress-track');
+    this.progressFill = this.body.querySelector('.progress-fill');
+    this.progressValue = this.body.querySelector('.progress-value');
 
-      <!-- Vista e insumos para la gestión de paquete ZIP -->
-      <div class="zip-management-container hidden" style="margin-top: 15px; text-align: left;">
-        <div class="zip-name-group" style="margin-bottom: 12px;">
-          <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;" data-i18n="zipPackageLabel">Nombre del archivo ZIP:</label>
-          <input type="text" class="zip-package-input" style="width: 100%; padding: 6px 10px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box;" placeholder="paquete.zip">
-        </div>
-        
-        <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 6px;" data-i18n="zipContentLabel">Contenido del paquete:</label>
-        <div class="zip-file-list" style="max-height: 180px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; border-radius: 6px; background: #f9f9f9;"></div>
-      </div>
+    this.resultModal = this.body.querySelector('.result-modal');
+    this.resultCard = this.body.querySelector('.result-card');
+    this.resultClose = this.body.querySelector('.result-close');
+    this.ringFill = this.body.querySelector('.ring-fill');
+    this.ringValue = this.body.querySelector('.ring-value');
+    this.successText = this.body.querySelector('.success-text');
+    this.savingsText = this.body.querySelector('.savings-text');
+    this.downloadBtn = this.body.querySelector('.download-btn');
+    this.resetBtn = this.body.querySelector('.reset-btn');
 
-      <div class="crush-stage">
-        <div class="gorilla">🦍</div>
-        <div class="file-preview-container">
-          <span class="file-icon">📄</span>
-        </div>
-      </div>
+    this.shareBlock = this.body.querySelector('.share-block');
+    this.shareLabel = this.body.querySelector('.share-label');
+    this.shareNative = this.body.querySelector('.share-native');
+    this.shareLinks = this.body.querySelector('.share-links');
+    this.shareFeedback = this.body.querySelector('.share-feedback');
+    this.shareCopy = this.body.querySelector('.share-copy');
+    this.shareAnchors = [...this.body.querySelectorAll('.share-links a.share-btn')];
 
-      <button class="compress-btn" disabled style="margin-top: 15px;">Comprimir</button>
+    this.ringFill.style.strokeDasharray = RING_CIRCUMFERENCE;
+    this.ringFill.style.strokeDashoffset = RING_CIRCUMFERENCE;
 
-      <div class="output">
-        <p><span class="status-label">Estado: </span><span class="status-badge idle">● En espera</span></p>
+    this.successText.id = `${this.id}-result-title`;
+    this.savingsText.id = `${this.id}-result-desc`;
+    this.resultCard.setAttribute('aria-labelledby', this.successText.id);
+    this.resultCard.setAttribute('aria-describedby', this.savingsText.id);
 
-        <!-- Contenedor simple para salida en Modo ZIP -->
-        <div class="zip-metrics-info hidden" style="margin-top: 8px;">
-          <p><strong><span class="lbl-m-comp-zip">Tamaño final:</span></strong> <span class="m-comp-zip">-</span></p>
-        </div>
-
-        <!-- Tabla detallada para Modo Compresión individual -->
-        <table class="metrics-table hidden">
-          <tr><td class="lbl-m-orig">Tamaño original:</td><td class="m-orig">-</td></tr>
-          <tr><td class="lbl-m-comp">Tamaño final:</td><td class="m-comp">-</td></tr>
-          <tr><td class="lbl-m-saved">Espacio ahorrado:</td><td class="m-saved">-</td></tr>
-          <tr><td class="lbl-m-ratio">Reducción:</td><td class="m-ratio">-</td></tr>
-          <tr>
-            <td class="lbl-m-method">Método utilizado:</td>
-            <td>
-              <span class="tooltip-container" tabindex="0">
-                <span class="m-method">-</span>
-                <span class="info-icon">i</span>
-                <span class="tooltip-text">Información sobre la técnica empleada.</span>
-              </span>
-            </td>
-          </tr>
-        </table>
-
-        <a class="btn-link download-link hidden" style="margin-top: 12px;">Descargar archivo</a>
-      </div>
-    `;
-    tabContentsContainer.appendChild(this.tabBody);
-
-    // Mapeo de elementos DOM de la pestaña / DOM element mapping for the tab
-    this.switchZipBox = this.tabBody.querySelector('.switch-question-zip');
-    this.switchCompressBox = this.tabBody.querySelector('.switch-question-compress');
-    this.fileInput = this.tabBody.querySelector('.file-input');
-    this.dropZone = this.tabBody.querySelector('.drop-zone');
-    this.dropText = this.tabBody.querySelector('.drop-text');
-    this.fileName = this.tabBody.querySelector('.file-name');
-    
-    // Elementos de edición ZIP / ZIP editing elements
-    this.zipManagementContainer = this.tabBody.querySelector('.zip-management-container');
-    this.lblZipPackage = this.tabBody.querySelector('[data-i18n="zipPackageLabel"]');
-    this.lblZipContent = this.tabBody.querySelector('[data-i18n="zipContentLabel"]');
-    this.zipPackageInput = this.tabBody.querySelector('.zip-package-input');
-    this.zipFileList = this.tabBody.querySelector('.zip-file-list');
-
-    this.crushStage = this.tabBody.querySelector('.crush-stage');
-    this.previewContainer = this.tabBody.querySelector('.file-preview-container');
-    this.compressBtn = this.tabBody.querySelector('.compress-btn');
-    this.statusLabel = this.tabBody.querySelector('.status-label');
-    this.statusBadge = this.tabBody.querySelector('.status-badge');
-    
-    // Elementos ZIP reducidos / Reduced ZIP metrics elements
-    this.zipMetricsInfo = this.tabBody.querySelector('.zip-metrics-info');
-    this.lblMCompZip = this.tabBody.querySelector('.lbl-m-comp-zip');
-    this.mCompZip = this.tabBody.querySelector('.m-comp-zip');
-
-    // Métricas para compresión estándar / Standard compression metrics
-    this.metricsTable = this.tabBody.querySelector('.metrics-table');
-    this.lblMOrig = this.tabBody.querySelector('.lbl-m-orig');
-    this.lblMComp = this.tabBody.querySelector('.lbl-m-comp');
-    this.lblMSaved = this.tabBody.querySelector('.lbl-m-saved');
-    this.lblMRatio = this.tabBody.querySelector('.lbl-m-ratio');
-    this.lblMMethod = this.tabBody.querySelector('.lbl-m-method');
-    this.mOrig = this.tabBody.querySelector('.m-orig');
-    this.mComp = this.tabBody.querySelector('.m-comp');
-    this.mSaved = this.tabBody.querySelector('.m-saved');
-    this.mRatio = this.tabBody.querySelector('.m-ratio');
-    this.mMethod = this.tabBody.querySelector('.m-method');
-    this.mMethodTooltip = this.tabBody.querySelector('.tooltip-text');
-    this.downloadLink = this.tabBody.querySelector('.download-link');
+    document.body.appendChild(this.resultModal);
   }
-
-  // ---------------------------------------------------------------------------
-  // 2.2 Event Listeners & Binding / Vinculación de Eventos
-  // ---------------------------------------------------------------------------
 
   bindEvents() {
-    if (this.switchZipBox) {
-      this.switchZipBox.addEventListener('click', () => this.setMode(true));
-    }
-    if (this.switchCompressBox) {
-      this.switchCompressBox.addEventListener('click', () => this.setMode(false));
-    }
+    this.tabBtn.addEventListener('click', () => activateTab(this.id, true));
+    this.tabBtn.addEventListener('keydown', (e) => onTabKeydown(e, this.id));
+    this.closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeTab(this.id);
+    });
 
-    this.tabHeader.addEventListener('click', (e) => {
-      if (e.target.classList.contains('tab-close')) {
-        closeTab(this.id);
-      } else {
-        activateTab(this.id);
+    this.levelBtns.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!this.enabledLevels.includes(btn.dataset.level)) return;
+        selectLevel(btn.dataset.level);
+      });
+    });
+    this.levelGroup.addEventListener('keydown', (e) => this.onLevelKeydown(e));
+
+    this.chooseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.fileInput.click();
+    });
+
+    this.zone.addEventListener('click', (e) => {
+      if (this.state === 'idle' && !e.target.closest('button')) {
+        this.fileInput.click();
       }
     });
 
-    this.dropZone.addEventListener('click', () => this.fileInput.click());
+    this.fileInput.addEventListener('change', () => {
+      this.handleFile(this.fileInput.files[0]);
+      this.fileInput.value = '';
+    });
 
-    this.dropZone.addEventListener('dragover', (e) => {
+    this.zone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      this.dropZone.classList.add('dragover');
+      if (this.state === 'idle') this.zone.classList.add('is-dragover');
     });
 
-    ['dragleave', 'dragend'].forEach(evt => {
-      this.dropZone.addEventListener(evt, () => this.dropZone.classList.remove('dragover'));
-    });
+    this.zone.addEventListener('dragleave', () => this.zone.classList.remove('is-dragover'));
 
-    this.dropZone.addEventListener('drop', (e) => {
+    this.zone.addEventListener('drop', (e) => {
       e.preventDefault();
-      this.dropZone.classList.remove('dragover');
-      if (e.dataTransfer.files.length) {
-        if (this.isZipMode) {
-          this.handleMultipleFilesSelect(e.dataTransfer.files);
-        } else {
-          this.handleFileSelect(e.dataTransfer.files[0]);
-        }
+      this.zone.classList.remove('is-dragover');
+      if (this.state === 'idle') this.handleFile(e.dataTransfer.files[0]);
+    });
+
+    this.zone.addEventListener('keydown', (e) => {
+      if (this.state !== 'feeding') return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.finishFeeding();
       }
     });
 
-    this.fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length) {
-        if (this.isZipMode) {
-          this.handleMultipleFilesSelect(e.target.files);
-        } else {
-          this.handleFileSelect(e.target.files[0]);
-        }
-      }
+    this.compressBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.processCompression();
     });
 
-    // Control del input para el nombre del paquete ZIP / Control for ZIP package name input
-    this.zipPackageInput.addEventListener('input', (e) => {
-      let val = e.target.value.trim();
-      this.zipPackageName = val.length > 0 ? val : 'paquete.zip';
+    this.resultClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.dismissResult();
     });
 
-    // Eventos delegados dentro de la lista ZIP / Delegated events inside ZIP file list
-    this.zipFileList.addEventListener('input', (e) => {
-      if (e.target.classList.contains('zip-item-rename')) {
-        const index = parseInt(e.target.getAttribute('data-index'), 10);
-        const ext = e.target.getAttribute('data-ext') || '';
-        
-        if (this.selectedFiles[index]) {
-          this.selectedFiles[index].customName = e.target.value + ext;
-        }
-      }
+    this.resetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.reset();
+      const tab = createTab();
+      tab.enterFeeding();
     });
 
-    this.zipFileList.addEventListener('click', (e) => {
-      if (e.target.classList.contains('btn-remove-zip-item')) {
-        const index = parseInt(e.target.getAttribute('data-index'), 10);
-        this.removeZipFileItem(index);
-      }
+    this.resultModal.addEventListener('click', (e) => {
+      if (e.target === this.resultModal) this.dismissResult();
     });
 
-    this.compressBtn.addEventListener('click', () => this.processCompression());
+    this.resultModal.addEventListener('keydown', (e) => this.trapFocus(e));
+
+    this.shareNative.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.shareWithSystem();
+    });
+
+    this.shareCopy.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.copyLink();
+    });
   }
 
-  // ---------------------------------------------------------------------------
-  // 2.3 Mode & i18n Handlers / Gestión de Modos e Internacionalización
-  // ---------------------------------------------------------------------------
+  onLevelKeydown(e) {
+    const moves = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
+    if (!(e.key in moves)) return;
 
-  setMode(isZip) {
-    this.isZipMode = isZip;
-    this.reset();
+    e.preventDefault();
+    const enabledKeys = LEVEL_KEYS.filter((k) => this.enabledLevels.includes(k));
+    if (!enabledKeys.length) return;
 
-    if (this.isZipMode) {
-      this.switchZipBox.classList.add('hidden');
-      this.switchCompressBox.classList.remove('hidden');
-      this.fileInput.setAttribute('multiple', 'true');
-    } else {
-      this.switchZipBox.classList.remove('hidden');
-      this.switchCompressBox.classList.add('hidden');
-      this.fileInput.removeAttribute('multiple');
-      this.zipManagementContainer.classList.add('hidden');
+    const currentIdx = enabledKeys.indexOf(getLevel());
+    const baseIdx = currentIdx >= 0 ? currentIdx : 0;
+    const next = enabledKeys[(baseIdx + moves[e.key] + enabledKeys.length) % enabledKeys.length];
+    selectLevel(next);
+    this.levelBtns.find((btn) => btn.dataset.level === next)?.focus();
+  }
+
+  setState(name) {
+    this.state = name;
+    this.zone.dataset.state = name;
+    this.zone.setAttribute('aria-busy', String(name === 'processing'));
+
+    const showIdle = name === 'idle' || name === 'feeding';
+    this.stateIdle.hidden = !showIdle;
+    this.stateProcessing.hidden = showIdle;
+
+    if (name !== 'processing') this.hideProgress();
+    this.syncModal();
+  }
+
+  syncModal() {
+    const show = this.isActive && this.state === 'done';
+    const wasShown = !this.resultModal.hidden;
+    this.resultModal.hidden = !show;
+    syncOverlay();
+    if (show && !wasShown) this.downloadBtn.focus();
+  }
+
+  setRing(pct) {
+    const clamped = Math.max(0, Math.min(100, pct));
+    const offset = RING_CIRCUMFERENCE * (1 - clamped / 100);
+    this.ringFill.style.strokeDashoffset = offset;
+    this.ringValue.textContent = `${clamped}%`;
+  }
+
+  // ----- Compartir -----
+
+  shareText() {
+    return i18n('shareText');
+  }
+
+  shareUrl() {
+    return window.location.href.split('#')[0];
+  }
+
+  // Rellena enlaces, etiquetas y muestra Web Share si el navegador lo soporta
+  renderShare() {
+    const text = this.shareText();
+    const url = this.shareUrl();
+
+    this.shareLabel.textContent = i18n('shareLabel');
+    this.shareNative.textContent = i18n('shareNative');
+    this.shareCopy.setAttribute('aria-label', i18n('copyLink'));
+    this.shareCopy.dataset.tooltip = i18n('copyLink');
+
+    this.shareAnchors.forEach((a) => {
+      const network = a.dataset.share;
+      const build = SHARE_URLS[network];
+      if (build) a.href = build(text, url);
+      a.setAttribute('aria-label', `${i18n('shareOn')} ${a.textContent.trim() || network}`.trim());
+      a.dataset.tooltip = a.getAttribute('aria-label');
+    });
+
+    const canNative = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+    this.shareNative.hidden = !canNative;
+    this.shareLinks.hidden = canNative;
+  }
+
+  async shareWithSystem() {
+    try {
+      await navigator.share({ title: i18n('ogTitle'), text: this.shareText(), url: this.shareUrl() });
+    } catch (err) {
+      // El usuario cerró el menú o el sistema lo rechazó: no es un error para mostrar
     }
-    this.updateLanguage();
+  }
+
+  async copyLink() {
+    const url = this.shareUrl();
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const field = document.createElement('textarea');
+        field.value = url;
+        field.setAttribute('readonly', '');
+        field.style.position = 'fixed';
+        field.style.opacity = '0';
+        document.body.appendChild(field);
+        field.select();
+        document.execCommand('copy');
+        field.remove();
+      }
+      this.shareFeedback.textContent = i18n('linkCopied');
+    } catch (err) {
+      this.shareFeedback.textContent = i18n('linkCopyError');
+    }
+    clearTimeout(this.shareFeedbackTimer);
+    this.shareFeedbackTimer = setTimeout(() => {
+      this.shareFeedback.textContent = '';
+    }, 2500);
+  }
+
+  refreshHeader() {
+    const full = this.selectedFile ? this.selectedFile.name : this.defaultTitle;
+    const short = this.selectedFile && full.length > 12 ? `${full.slice(0, 10)}...` : full;
+    this.tabBtn.textContent = short;
+    this.tabBtn.setAttribute('aria-label', full);
+  }
+
+  renderLevel() {
+    const current = getLevel();
+    const hasFile = Boolean(this.selectedFile);
+
+    this.levelGroup.hidden = !hasFile || this.levelMode === 'none' || this.analyzing;
+    this.levelGroup.setAttribute('aria-label', i18n('levelLabel'));
+
+    this.levelBtns.forEach((btn) => {
+      const level = btn.dataset.level;
+      const keys = LEVEL_TEXT_KEYS[level];
+      const enabled = this.enabledLevels.includes(level);
+      const on = level === current;
+
+      btn.setAttribute('aria-disabled', String(!enabled));
+      btn.classList.toggle('is-unavailable', !enabled);
+      btn.textContent = i18n(keys.label);
+      btn.dataset.tooltip = enabled ? i18n(keys.desc) : i18n('levelUnavailable');
+      btn.setAttribute('aria-checked', String(on));
+      btn.tabIndex = on ? 0 : -1;
+    });
+
+    this.compressBtn.disabled =
+      !hasFile || this.busy || this.analyzing || this.enabledLevels.length === 0;
+  }
+
+  renderLabels() {
+    if (this.selectedFile) {
+      const note = fileNote(this.selectedFile);
+      this.dropTitle.textContent = this.selectedFile.name;
+      this.dropSubtitle.textContent = [formatBytes(this.selectedFile.size), note].filter(Boolean).join(' · ');
+    } else {
+      this.dropTitle.innerHTML = i18n('dropText');
+      this.dropSubtitle.textContent = '';
+    }
+
+    this.chooseBtn.textContent = i18n('chooseFile');
+    this.compressBtn.textContent = i18n('compressBtn');
+    this.downloadBtn.textContent = i18n('downloadPrefix');
+    this.resetBtn.textContent = i18n('again');
+    this.resultClose.setAttribute('aria-label', i18n('closeResult'));
+    this.resultClose.dataset.tooltip = i18n('closeResult');
+    this.closeBtn.setAttribute('aria-label', i18n('closeTab'));
+    this.progressTrack.setAttribute('aria-label', i18n('progressLabel'));
+    this.renderLevel();
+
+    if (this.state === 'done' && this.lastResult) {
+      const r = this.lastResult;
+      this.successText.textContent = i18n('successText');
+      this.savingsText.textContent = [
+        i18n('savedPercent').replace('{p}', r.pct),
+        i18n('finalSize').replace('{size}', formatBytes(r.size))
+      ].join(' · ');
+    }
+
+    this.renderShare();
+    refreshIcons();
   }
 
   updateLanguage() {
-    if (typeof translations === 'undefined' || !translations[currentLang]) return;
-    const t = translations[currentLang];
-
-    const askZip = this.tabBody.querySelector('[data-i18n="askZipMode"]');
-    const btnZip = this.tabBody.querySelector('[data-i18n="btnToZip"]');
-    const askComp = this.tabBody.querySelector('[data-i18n="askCompressMode"]');
-    const btnComp = this.tabBody.querySelector('[data-i18n="btnToCompress"]');
-
-    if (askZip && t.askZipMode) askZip.textContent = t.askZipMode;
-    if (btnZip && t.btnToZip) btnZip.textContent = t.btnToZip;
-    if (askComp && t.askCompressMode) askComp.textContent = t.askCompressMode;
-    if (btnComp && t.btnToCompress) btnComp.textContent = t.btnToCompress;
-
-    if (this.lblZipPackage && t.zipPackageLabel) this.lblZipPackage.textContent = t.zipPackageLabel;
-    if (this.lblZipContent && t.zipContentLabel) this.lblZipContent.textContent = t.zipContentLabel;
-
-    if (this.isZipMode) {
-      if (!this.selectedFiles.length) {
-        this.dropText.innerHTML = t.dropTextZip || '<strong>Arrastra tus archivos aquí</strong><br>para armar un paquete .ZIP';
-        this.fileName.textContent = t.noFile || 'Ningún archivo seleccionado';
-      } else {
-        const totalSize = this.selectedFiles.reduce((acc, item) => acc + item.file.size, 0);
-        const filesLabel = t.filesSelected || 'archivos seleccionados';
-        this.fileName.textContent = `${this.selectedFiles.length} ${filesLabel} (${formatBytes(totalSize)})`;
-      }
-      this.compressBtn.textContent = t.createZipBtn || 'Crear paquete .ZIP';
-    } else {
-      if (!this.selectedFile) {
-        this.dropText.innerHTML = t.dropText || '<strong>Arrastra un archivo aquí</strong><br>o haz clic para seleccionar';
-        this.fileName.textContent = t.noFile || 'Ningún archivo seleccionado';
-      }
-      this.compressBtn.textContent = t.compressBtn || 'Comprimir';
-    }
-
-    if (!this.selectedFile && !this.selectedFiles.length) {
-      const tabNumber = this.defaultTitle.match(/\d+/);
-      const suffix = tabNumber ? ` ${tabNumber[0]}` : '';
-      this.defaultTitle = `${t.defaultTabTitle || 'Archivo'}${suffix}`;
-      this.tabHeader.querySelector('.tab-title').textContent = this.defaultTitle;
-    }
-
-    if (this.statusLabel) this.statusLabel.textContent = t.statusLabel;
-
-    if (this.statusBadge.classList.contains('idle')) {
-      this.statusBadge.textContent = t.statusIdle;
-    } else if (this.statusBadge.classList.contains('ready')) {
-      this.statusBadge.textContent = this.isZipMode ? (t.statusZipReady || t.statusReady) : t.statusReady;
-    } else if (this.statusBadge.classList.contains('completed')) {
-      this.statusBadge.textContent = t.statusDone;
-    }
-
-    if (this.lblMCompZip) this.lblMCompZip.textContent = t.mComp || 'Tamaño final:';
-    if (this.lblMOrig) this.lblMOrig.textContent = t.mOrig;
-    if (this.lblMComp) this.lblMComp.textContent = t.mComp;
-    if (this.lblMSaved) this.lblMSaved.textContent = t.mSaved;
-    if (this.lblMRatio) this.lblMRatio.textContent = t.mRatio;
-    if (this.lblMMethod) this.lblMMethod.textContent = t.mMethod;
-
-    if (this.lastMethodKey) {
-      this.mMethod.textContent = t[`${this.lastMethodKey}Method`] || '';
-      this.mMethodTooltip.textContent = t[`${this.lastMethodKey}Desc`] || '';
-    }
-
-    if (!this.downloadLink.classList.contains('hidden')) {
-      const name = this.isZipMode ? this.getFinalZipName() : (this.selectedFile ? this.selectedFile.name : '');
-      const safeName = sanitizeFilename(name);
-      this.downloadLink.textContent = `${t.downloadPrefix} ${safeName}`;
-    }
+    this.renderLabels();
+    this.refreshHeader();
+    renderShared();
   }
 
-  setStatus(text, type) {
-    this.statusBadge.textContent = text;
-    this.statusBadge.className = `status-badge ${type}`;
+  setStatus(text) {
+    this.statusText.textContent = plainText(text);
   }
 
-  getFinalZipName() {
-    let name = this.zipPackageName.trim();
-    if (!name.toLowerCase().endsWith('.zip')) {
-      name += '.zip';
-    }
-    return name;
+  enterFeeding() {
+    this.setState('feeding');
+    this.zone.focus({ preventScroll: true });
+    this.feed();
   }
 
-  // ---------------------------------------------------------------------------
-  // 2.4 ZIP Mode Logic & Management / Lógica y Gestión de Modo ZIP
-  // ---------------------------------------------------------------------------
+  feed() {
+    if (this.state !== 'feeding') return;
+    if (bananaSystem.gorillaEl === this.idleGorilla && !bananaSystem.isEaten) return;
 
-  handleMultipleFilesSelect(fileList) {
-    const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
-    const files = Array.from(fileList);
+    const token = ++this.feedToken;
 
-    for (const file of files) {
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        const errText = t.limitError || `✖ Un archivo supera el límite de ${MAX_FILE_SIZE_MB}MB`;
-        this.setStatus(errText, 'error');
-        return;
-      }
-    }
+    setTimeout(() => {
+      if (!this.alive || this.state !== 'feeding' || token !== this.feedToken) return;
 
-    const mappedFiles = files.map(f => ({
-      file: f,
-      customName: f.name
-    }));
-
-    this.selectedFiles = [...this.selectedFiles, ...mappedFiles];
-    this.zipPackageInput.value = this.zipPackageName;
-    this.renderZipFileList();
-
-    this.compressBtn.disabled = false;
-    this.downloadLink.classList.add('hidden');
-    this.zipMetricsInfo.classList.add('hidden');
-    this.metricsTable.classList.add('hidden');
-    this.setStatus(t.statusZipReady || t.statusReady || '● Listo para empaquetar', 'ready');
+      bananaSystem.spawn(this.idleGorilla, () => {
+        setTimeout(() => this.finishFeeding(token), FEED_FINISH_DELAY_MS);
+      });
+    }, BANANA_DELAY_MS);
   }
 
-  async renderZipFileList() {
-    this.zipFileList.innerHTML = '';
-    let totalSize = 0;
-    const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
+  finishFeeding(token = this.feedToken) {
+    if (!this.alive || this.state !== 'feeding' || token !== this.feedToken) return;
 
-    if (this.selectedFiles.length === 0) {
-      this.zipManagementContainer.classList.add('hidden');
-      this.fileName.textContent = t.noFile || 'Ningún archivo seleccionado';
-      this.compressBtn.disabled = true;
+    if (bananaSystem.gorillaEl === this.idleGorilla) bananaSystem.cancel();
+
+    this.setState('idle');
+    this.chooseBtn.focus();
+  }
+
+  showProgress(ratio) {
+    this.progressEl.hidden = false;
+
+    if (ratio == null) {
+      this.progressEl.classList.add('indeterminate');
+      this.progressValue.textContent = '';
+      this.progressTrack.removeAttribute('aria-valuenow');
       return;
     }
 
-    this.selectedFiles.forEach((item, idx) => {
-      totalSize += item.file.size;
-
-      // Extraer nombre base y extensión / Extract base name and extension
-      const fullCustomName = item.customName || item.file.name;
-      const lastDotIndex = fullCustomName.lastIndexOf('.');
-      let baseName = fullCustomName;
-      let ext = '';
-
-      if (lastDotIndex > 0) {
-        baseName = fullCustomName.substring(0, lastDotIndex);
-        ext = fullCustomName.substring(lastDotIndex);
-      }
-
-      const row = document.createElement('div');
-      row.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 6px;';
-      
-      // Contenedor de vista previa / Preview container thumbnail
-      const previewThumb = document.createElement('div');
-      previewThumb.style.cssText = 'width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; background: #eee; border: 1px solid #ccc; font-size: 14px;';
-      row.appendChild(previewThumb);
-
-      // Input de edición (solo el nombre sin la extensión) / Rename input (base name only)
-      const inputGroup = document.createElement('div');
-      inputGroup.style.cssText = 'flex: 1; display: flex; align-items: center; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 0 4px; overflow: hidden;';
-      inputGroup.innerHTML = `
-        <input type="text" class="zip-item-rename" data-index="${idx}" data-ext="${escapeHTML(ext)}" value="${escapeHTML(baseName)}" style="flex: 1; border: none; outline: none; padding: 4px; font-size: 12px; background: transparent;">
-        <span style="font-size: 12px; color: #777; font-weight: bold; padding-right: 4px; user-select: none;">${escapeHTML(ext)}</span>
-      `;
-      row.appendChild(inputGroup);
-
-      // Tamaño y acción de eliminar / Size and delete action
-      const sizeAndAction = document.createElement('div');
-      sizeAndAction.style.cssText = 'display: flex; align-items: center; gap: 6px;';
-      sizeAndAction.innerHTML = `
-        <span style="font-size: 11px; color: #666; white-space: nowrap;">${formatBytes(item.file.size)}</span>
-        <button type="button" class="btn-remove-zip-item" data-index="${idx}" style="background: none; border: none; color: #ff4d4d; cursor: pointer; font-weight: bold; font-size: 14px;">✕</button>
-      `;
-      row.appendChild(sizeAndAction);
-
-      this.zipFileList.appendChild(row);
-
-      // Renderizado dinámico de la miniatura de vista previa / Dynamic thumbnail rendering
-      this.generateThumbnail(item.file, previewThumb);
-    });
-
-    const filesLabel = t.filesSelected || 'archivos seleccionados';
-    this.fileName.textContent = `${this.selectedFiles.length} ${filesLabel} (${formatBytes(totalSize)})`;
-    this.tabHeader.querySelector('.tab-title').textContent = `ZIP (${this.selectedFiles.length})`;
-    this.previewContainer.innerHTML = `<span class="file-icon">📦</span>`;
-    this.zipManagementContainer.classList.remove('hidden');
+    const pct = Math.round(ratio * 100);
+    this.progressEl.classList.remove('indeterminate');
+    this.progressFill.style.width = `${pct}%`;
+    this.progressValue.textContent = `${pct}%`;
+    this.progressTrack.setAttribute('aria-valuenow', String(pct));
   }
 
-  async generateThumbnail(file, container) {
-    const type = file.type;
-    const name = file.name.toLowerCase();
+  hideProgress() {
+    this.progressEl.hidden = true;
+    this.progressEl.classList.remove('indeterminate');
+    this.progressFill.style.width = '0%';
+    this.progressValue.textContent = '';
+    this.progressTrack.removeAttribute('aria-valuenow');
+  }
 
-    if (type.startsWith('image/')) {
-      const img = document.createElement('img');
-      const thumbUrl = URL.createObjectURL(file);
-      img.src = thumbUrl;
-      img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
-      img.onload = () => URL.revokeObjectURL(thumbUrl);
-      container.appendChild(img);
-    } else if (type === 'application/pdf' || name.endsWith('.pdf')) {
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const page = await pdf.getPage(1);
+  handleProgress(job, update) {
+    if (job !== this.jobId) return;
 
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        const viewport = page.getViewport({ scale: 0.1 });
+    const labels = {
+      queued: i18n('queued'),
+      loading: i18n('loadingEngine'),
+      audio: i18n('statusEncodingAudio'),
+      video: i18n('statusEncodingVideo')
+    };
+    if (update.phase && labels[update.phase]) this.setStatus(labels[update.phase]);
 
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        canvas.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain;';
-
-        await page.render({ canvasContext: context, viewport: viewport }).promise;
-        container.appendChild(canvas);
-      } catch (err) {
-        container.innerHTML = '📄';
-      }
-    } else if (type.startsWith('video/') || name.endsWith('.mp4') || name.endsWith('.webm')) {
-      container.innerHTML = '🎬';
-    } else if (type.startsWith('audio/') || name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.ogg')) {
-      container.innerHTML = '🎵';
+    const waiting = update.phase === 'queued' || update.phase === 'loading';
+    if (waiting || update.ratio == null) {
+      this.showProgress(null);
     } else {
-      container.innerHTML = '📄';
+      this.showProgress(update.ratio);
     }
   }
 
-  removeZipFileItem(index) {
-    this.selectedFiles.splice(index, 1);
-    this.renderZipFileList();
+  showError(message) {
+    this.errorText.classList.remove('is-info');
+    this.errorText.textContent = plainText(message);
   }
 
-  // ---------------------------------------------------------------------------
-  // 2.5 Single File Logic & Previews / Selección de Archivo Único y Vistas Previas
-  // ---------------------------------------------------------------------------
+  showHint(text) {
+    this.errorText.classList.add('is-info');
+    this.errorText.textContent = plainText(text);
+  }
+
+  clearError() {
+    this.errorText.classList.remove('is-info');
+    this.errorText.textContent = '';
+  }
+
+  async handleFile(file) {
+    if (!file || this.busy || this.analyzing || this.state !== 'idle') return;
+    this.clearError();
+
+    if (!isSupportedFile(file)) {
+      this.showError(i18n('unsupportedError'));
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      this.showError(i18n('limitError'));
+      return;
+    }
+    if (detectKind(file) === 'video' && file.size > MAX_VIDEO_SIZE_BYTES) {
+      this.showError(i18n('videoTooLarge'));
+      return;
+    }
+
+    const probe = ++this.probeId;
+    this.selectedFile = file;
+    this.levelMode = 'none';
+    this.enabledLevels = [...LEVEL_KEYS];
+    this.cachedResults = {};
+
+    this.analyzing = true;
+    this.renderLabels();
+
+    if (detectKind(file) === 'image') this.showHint(i18n('checkingLevels'));
+
+    const isStale = () => !this.alive || probe !== this.probeId || this.selectedFile !== file;
+    let evaluation = null;
+    try {
+      evaluation = await probeCompressionLevels(file, isStale);
+    } finally {
+      if (probe === this.probeId) this.analyzing = false;
+    }
+
+    if (!evaluation || isStale()) {
+      this.renderLevel();
+      return;
+    }
+
+    this.clearError();
+    this.levelMode = evaluation.mode;
+    this.enabledLevels = evaluation.enabledLevels;
+    this.cachedResults = evaluation.resultsByLevel;
+
+    if (evaluation.mode === 'probed') {
+      if (!evaluation.enabledLevels.includes(getLevel()) && evaluation.recommendedLevel) {
+        selectLevel(evaluation.recommendedLevel);
+      } else if (!evaluation.enabledLevels.length) {
+        this.showError(i18n('noCompressionPossible'));
+      }
+    }
+
+    this.renderLevel();
+  }
+
+  async renderPreview(file) {
+    this.revokePreviewUrl();
+    this.previewContainer.innerHTML = '';
+
+    const name = file.name.toLowerCase();
+    const fallback = () => {
+      this.previewContainer.innerHTML = `<i data-lucide="${getFileIcon(file)}" aria-hidden="true"></i>`;
+      refreshIcons();
+    };
+
+    if ((file.type || '').startsWith('image/')) {
+      const img = document.createElement('img');
+      this.previewUrl = URL.createObjectURL(file);
+      img.src = this.previewUrl;
+      img.alt = '';
+      this.previewContainer.appendChild(img);
+    } else if ((file.type || '').toLowerCase() === 'application/pdf' || name.endsWith('.pdf')) {
+      try {
+        const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 0.3 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        this.previewContainer.appendChild(canvas);
+      } catch (err) {
+        fallback();
+      }
+    } else {
+      fallback();
+    }
+  }
+
+  startSmash() {
+    this.crushStage.removeEventListener('animationiteration', this.endSmash);
+    this.crushStage.classList.add('smash-active');
+  }
+
+  stopSmash(immediate = false) {
+    if (immediate) {
+      this.crushStage.removeEventListener('animationiteration', this.endSmash);
+      this.crushStage.classList.remove('smash-active');
+      return;
+    }
+
+    if (this.crushStage.classList.contains('smash-active')) {
+      this.crushStage.addEventListener('animationiteration', this.endSmash);
+    }
+  }
+
+  async processCompression() {
+    if (!this.selectedFile || this.busy || this.analyzing) return;
+
+    const level = getLevel();
+    if (!this.enabledLevels.includes(level)) {
+      this.showError(i18n('noCompressionPossible'));
+      return;
+    }
+
+    getAudioContext();
+
+    const job = ++this.jobId;
+    const file = this.selectedFile;
+    const cached = this.cachedResults[level];
+    const onProgress = (update) => this.handleProgress(job, update);
+
+    this.clearError();
+    this.busy = true;
+    this.compressBtn.disabled = true;
+    this.setState('processing');
+    this.zone.focus({ preventScroll: true });
+    this.setStatus(i18n('statusProcessing'));
+    this.startSmash();
+
+    setTimeout(() => {
+      if (job === this.jobId) this.renderPreview(file);
+    }, 0);
+
+    try {
+      const compressionTask = cached
+        ? Promise.resolve(cached.blob)
+        : compressFile(file, onProgress, level);
+
+      const [result] = await Promise.all([compressionTask, wait(SMASH_MIN_MS)]);
+      if (job !== this.jobId) return;
+
+      if (!result || result.size === 0) {
+        const err = new Error('empty-result');
+        err.code = 'EMPTY_RESULT';
+        throw err;
+      }
+
+      const pctSaved = cached
+        ? cached.pctSaved
+        : (file.size > 0 ? Math.round((1 - result.size / file.size) * 100) : 0);
+
+      if (result.size >= file.size || pctSaved < 1) {
+        this.enabledLevels = this.enabledLevels.filter((l) => l !== level);
+        this.stopSmash(true);
+        this.setState('idle');
+        this.showError(i18n('noCompressionPossible'));
+        this.renderLevel();
+        return;
+      }
+
+      this.showDone(file, result, level, pctSaved);
+    } catch (err) {
+      if (job !== this.jobId) return;
+      console.error(err);
+      this.stopSmash(true);
+      this.setState('idle');
+      this.showError(friendlyError(err));
+    } finally {
+      if (job === this.jobId) {
+        this.stopSmash(this.state !== 'done');
+        this.busy = false;
+        this.renderLevel();
+        if (this.state === 'idle' && this.selectedFile && !this.compressBtn.disabled) {
+          this.compressBtn.focus();
+        }
+      }
+    }
+  }
+
+  showDone(file, outBlob, level, pctSaved) {
+    if (this.downloadUrl) URL.revokeObjectURL(this.downloadUrl);
+    this.downloadUrl = URL.createObjectURL(outBlob);
+
+    const name = downloadName(outputFileName(file.name, outBlob));
+    this.downloadBtn.href = this.downloadUrl;
+    this.downloadBtn.download = name;
+    this.downloadBtn.setAttribute('aria-label', `${i18n('downloadPrefix')} ${name}`);
+
+    this.lastResult = { pct: pctSaved, file, level, size: outBlob.size };
+    this.shareFeedback.textContent = '';
+
+    this.statusText.textContent = '';
+    this.setState('done');
+    this.renderLabels();
+
+    this.setRing(0);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (this.state === 'done') this.setRing(pctSaved);
+      });
+    });
+  }
+
+  dismissResult() {
+    const wasActive = this.isActive;
+    this.reset();
+    if (wasActive) {
+      this.enterFeeding();
+    } else {
+      this.chooseBtn.focus();
+    }
+  }
+
+  trapFocus(e) {
+    if (e.key !== 'Tab') return;
+
+    const items = [...this.resultCard.querySelectorAll('a[href], button:not([disabled]):not([hidden])')]
+      .filter((el) => el.offsetParent !== null);
+    if (!items.length) return;
+
+    const first = items[0];
+    const last = items[items.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   revokePreviewUrl() {
     if (this.previewUrl) {
@@ -505,337 +748,181 @@ class TabInstance {
     }
   }
 
-  revokeDownloadUrl() {
+  revokeUrls() {
+    this.revokePreviewUrl();
     if (this.downloadUrl) {
       URL.revokeObjectURL(this.downloadUrl);
       this.downloadUrl = null;
     }
   }
 
-  async handleFileSelect(file) {
-    const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      const errText = t.limitError || `✖ El archivo supera el límite de ${MAX_FILE_SIZE_MB}MB`;
-      this.setStatus(errText, 'error');
-      return;
-    }
-
-    this.selectedFile = file;
-    this.fileName.textContent = `${file.name} (${formatBytes(file.size)})`;
-
-    const shortName = file.name.length > 12 ? file.name.slice(0, 10) + '...' : file.name;
-    this.tabHeader.querySelector('.tab-title').textContent = shortName;
-
-    this.compressBtn.disabled = false;
-    this.downloadLink.classList.add('hidden');
-    this.zipMetricsInfo.classList.add('hidden');
-    this.metricsTable.classList.add('hidden');
-    this.setStatus(t.statusPreview || '● Cargando vista previa...', 'ready');
-
-    await this.updatePreview(file);
-    this.setStatus(t.statusReady || '● Listo para procesar', 'ready');
-  }
-
-  async updatePreview(file) {
-    this.revokePreviewUrl();
-    this.previewContainer.innerHTML = '';
-    const type = file.type;
-    const name = file.name.toLowerCase();
-
-    if (type.startsWith('image/')) {
-      const img = document.createElement('img');
-      this.previewUrl = URL.createObjectURL(file);
-      img.src = this.previewUrl;
-      this.previewContainer.appendChild(img);
-    } else if (type.startsWith('audio/') || name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.ogg')) {
-      const audio = document.createElement('audio');
-      audio.controls = true;
-      this.previewUrl = URL.createObjectURL(file);
-      audio.src = this.previewUrl;
-      audio.style.maxWidth = '100%';
-      this.previewContainer.appendChild(audio);
-    } else if (type.startsWith('video/') || name.endsWith('.mp4') || name.endsWith('.webm')) {
-      const video = document.createElement('video');
-      video.controls = true;
-      this.previewUrl = URL.createObjectURL(file);
-      video.src = this.previewUrl;
-      video.style.maxWidth = '100%';
-      video.style.maxHeight = '180px';
-      this.previewContainer.appendChild(video);
-    } else if (type === 'application/pdf' || name.endsWith('.pdf')) {
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const page = await pdf.getPage(1);
-
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        const viewport = page.getViewport({ scale: 0.3 });
-
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-
-        await page.render({ canvasContext: context, viewport: viewport }).promise;
-        this.previewContainer.appendChild(canvas);
-      } catch (err) {
-        this.renderEmojiFallback(file);
-      }
-    } else {
-      this.renderEmojiFallback(file);
-    }
-  }
-
-  renderEmojiFallback(file) {
-    this.previewContainer.innerHTML = `<span class="file-icon">${getFileEmoji(file)}</span>`;
-  }
-
-  // ---------------------------------------------------------------------------
-  // 2.6 Animations & Compression Processing / Animaciones y Procesamiento
-  // ---------------------------------------------------------------------------
-
-  startSmashAnimation() {
-    this.crushStage.classList.add('smash-active');
-    setTimeout(() => playSquishSound(), 290);
-
-    this.squishInterval = setInterval(() => {
-      playSquishSound();
-    }, 650);
-  }
-
-  stopSmashAnimation() {
-    this.crushStage.classList.remove('smash-active');
-    if (this.squishInterval) {
-      clearInterval(this.squishInterval);
-      this.squishInterval = null;
-    }
-  }
-
-  async processCompression() {
-    const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
-
-    try {
-      this.compressBtn.disabled = true;
-      this.downloadLink.classList.add('hidden');
-      this.zipMetricsInfo.classList.add('hidden');
-      this.metricsTable.classList.add('hidden');
-      this.startSmashAnimation();
-
-      let compressedBlob = null;
-      let methodKey = '';
-      let originalSize = 0;
-
-      if (this.isZipMode) {
-        if (!this.selectedFiles.length) return;
-        this.setStatus(t.statusZipBuilding || '⏳ Armando paquete .ZIP...', 'processing');
-
-        const zip = new JSZip();
-        this.selectedFiles.forEach(item => {
-          const finalName = sanitizeFilename(item.customName || item.file.name);
-          zip.file(finalName, item.file);
-          originalSize += item.file.size;
-        });
-
-        compressedBlob = await zip.generateAsync({ type: 'blob' });
-        methodKey = 'zip';
-
-      } else {
-        if (!this.selectedFile) return;
-        this.setStatus(t.statusProcessing || '⏳ Aplastando archivo...', 'processing');
-
-        originalSize = this.selectedFile.size;
-        const fileType = this.selectedFile.type;
-        const fileNameLower = this.selectedFile.name.toLowerCase();
-
-        if (fileType.startsWith('image/')) {
-          compressedBlob = await new Promise((resolve, reject) => {
-            new Compressor(this.selectedFile, {
-              quality: 0.6,
-              maxWidth: 1600,
-              maxHeight: 1600,
-              convertSize: 1000000,
-              retainExif: false,
-              strict: false,
-              mimeType: fileType === 'image/png' ? 'image/png' : 'image/jpeg',
-              success(result) { resolve(result); },
-              error(err) { reject(err); },
-            });
-          });
-          methodKey = 'img';
-        } else if (fileType === 'application/pdf' || fileNameLower.endsWith('.pdf')) {
-          const arrayBuffer = await this.selectedFile.arrayBuffer();
-          const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-          const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
-          compressedBlob = new Blob([pdfBytes], { type: 'application/pdf' });
-          methodKey = 'pdf';
-        } else if (fileType.startsWith('audio/') || fileNameLower.endsWith('.mp3') || fileNameLower.endsWith('.wav') || fileNameLower.endsWith('.ogg')) {
-          this.setStatus(t.statusEncodingAudio || '⏳ Codificando audio MP3...', 'processing');
-          compressedBlob = await compressAudioFile(this.selectedFile, 128);
-          methodKey = 'audio';
-        } else if (fileType.startsWith('video/') || fileNameLower.endsWith('.mp4') || fileNameLower.endsWith('.webm')) {
-          this.setStatus(t.statusEncodingVideo || '⏳ Re-codificando video (FFmpeg)...', 'processing');
-          compressedBlob = await compressVideoFile(this.selectedFile);
-          methodKey = 'video';
-        } else if (
-          fileType.startsWith('text/') || fileNameLower.endsWith('.json') ||
-          fileNameLower.endsWith('.csv') || fileNameLower.endsWith('.svg')
-        ) {
-          const text = await this.selectedFile.text();
-          const minifiedText = text.replace(/\s+/g, ' ').trim();
-          compressedBlob = new Blob([minifiedText], { type: fileType || 'text/plain' });
-          methodKey = 'text';
-        } else {
-          throw new Error(t.unsupportedError || 'Tipo de archivo no soportado para compresión directa.');
-        }
-      }
-
-      this.lastMethodKey = methodKey;
-
-      const compressedSize = compressedBlob.size;
-      const savedBytes = originalSize - compressedSize;
-      const ratio = originalSize > 0 ? (((originalSize - compressedSize) / originalSize) * 100).toFixed(2) : 0;
-
-      await new Promise((resolve) => setTimeout(resolve, 1300));
-
-      if (this.isZipMode) {
-        this.mCompZip.textContent = formatBytes(compressedSize);
-        this.zipMetricsInfo.classList.remove('hidden');
-        this.metricsTable.classList.add('hidden');
-      } else {
-        this.mOrig.textContent = formatBytes(originalSize);
-        this.mComp.textContent = formatBytes(compressedSize);
-        this.mSaved.textContent = savedBytes > 0 ? formatBytes(savedBytes) : '0 B';
-        this.mRatio.textContent = savedBytes > 0 ? `-${ratio}%` : '0%';
-        this.mMethod.textContent = t[`${methodKey}Method`] || methodKey.toUpperCase();
-        this.mMethodTooltip.textContent = t[`${methodKey}Desc`] || '';
-        this.metricsTable.classList.remove('hidden');
-        this.zipMetricsInfo.classList.add('hidden');
-      }
-
-      this.revokeDownloadUrl();
-      this.downloadUrl = URL.createObjectURL(compressedBlob);
-
-      const targetFileName = this.isZipMode ? this.getFinalZipName() : this.selectedFile.name;
-      const safeName = sanitizeFilename(targetFileName);
-      const downloadPrefix = t.downloadPrefix || 'Descargar';
-
-      this.downloadLink.href = this.downloadUrl;
-      this.downloadLink.download = safeName;
-      this.downloadLink.textContent = `${downloadPrefix} ${safeName}`;
-      this.downloadLink.classList.remove('hidden');
-
-      this.setStatus(t.statusDone || '✔ Completado', 'completed');
-
-      const activeGorilla = this.tabBody.querySelector('.gorilla');
-      bananaSystem.spawn(activeGorilla);
-
-    } catch (err) {
-      this.setStatus(`✖ ${err.message || 'Error al procesar'}`, 'error');
-    } finally {
-      this.stopSmashAnimation();
-      this.compressBtn.disabled = false;
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // 2.7 Lifecycle Cleanup / Limpieza y Destrucción de la Instancia
-  // ---------------------------------------------------------------------------
-
   reset() {
-    const t = typeof translations !== 'undefined' ? translations[currentLang] : {};
-    this.stopSmashAnimation();
-    this.revokePreviewUrl();
-    this.revokeDownloadUrl();
+    this.jobId++;
+    this.probeId++;
+    this.stopSmash(true);
+    this.revokeUrls();
+    if (bananaSystem.gorillaEl === this.idleGorilla) bananaSystem.cancel();
     this.selectedFile = null;
-    this.selectedFiles = [];
-    this.zipPackageName = 'paquete.zip';
-    this.lastMethodKey = null;
+    this.lastResult = null;
+    this.levelMode = 'none';
+    this.enabledLevels = [...LEVEL_KEYS];
+    this.cachedResults = {};
+    this.busy = false;
+    this.analyzing = false;
     this.fileInput.value = '';
-    this.fileName.textContent = t.noFile || 'Ningún archivo seleccionado';
-    this.tabHeader.querySelector('.tab-title').textContent = this.defaultTitle;
-    this.previewContainer.innerHTML = '<span class="file-icon">📄</span>';
-    this.zipManagementContainer.classList.add('hidden');
-    this.zipFileList.innerHTML = '';
+    this.previewContainer.innerHTML = '';
+    this.statusText.textContent = '';
+    this.shareFeedback.textContent = '';
+    this.clearError();
     this.compressBtn.disabled = true;
-    this.downloadLink.classList.add('hidden');
-    this.zipMetricsInfo.classList.add('hidden');
-    this.metricsTable.classList.add('hidden');
-    this.setStatus(t.statusIdle || '● En espera', 'idle');
+    this.setRing(0);
+    this.setState('idle');
+    this.refreshHeader();
+    this.renderLabels();
   }
 
   destroy() {
-    this.stopSmashAnimation();
-    this.revokePreviewUrl();
-    this.revokeDownloadUrl();
-    this.tabHeader.remove();
-    this.tabBody.remove();
+    this.alive = false;
+    this.jobId++;
+    this.probeId++;
+    this.stopSmash(true);
+    this.revokeUrls();
+    if (bananaSystem.gorillaEl === this.idleGorilla) bananaSystem.cancel();
+    clearTimeout(this.shareFeedbackTimer);
+    this.header.remove();
+    this.body.remove();
+    this.resultModal.remove();
+    syncOverlay();
   }
 }
 
-
 // =============================================================================
-// 3. TAB NAVIGATION FUNCTIONS & INITIALIZATION
-// 3. Funciones de Navegación de Pestañas e Inicialización
+// 3. ELEMENTOS COMPARTIDOS Y NAVEGACIÓN / SHARED ELEMENTS & TAB NAVIGATION
 // =============================================================================
 
-function createTab() {
-  tabCounter++;
-  const t = typeof translations !== 'undefined' && translations[currentLang] ? translations[currentLang] : {};
-  const baseTitle = t.defaultTabTitle || 'Archivo';
-  const id = 'tab-' + Date.now();
-  const newTab = new TabInstance(id, `${baseTitle} ${tabCounter}`);
-  tabs.push(newTab);
-  activateTab(id);
+function selectLevel(level) {
+  setLevel(level);
+  tabs.forEach((tab) => tab.renderLevel());
 }
 
-function activateTab(id) {
-  activeTabId = id;
-  tabs.forEach(tab => {
-    if (tab.id === id) {
-      tab.tabHeader.classList.add('active');
-      tab.tabBody.classList.remove('hidden');
-    } else {
-      tab.tabHeader.classList.remove('active');
-      tab.tabBody.classList.add('hidden');
-    }
+function syncOverlay() {
+  const open = tabs.some((t) => t.resultModal && !t.resultModal.hidden);
+  ['.container', '.sticky-footer', '.lang-selector-container'].forEach((selector) => {
+    const el = document.querySelector(selector);
+    if (el) el.inert = open;
   });
+}
+
+function renderPageMeta() {
+  document.title = `${i18n('ogTitle')} - ${i18n('tagline')}`;
+  document.querySelector('meta[name="description"]')?.setAttribute('content', i18n('metaDescription'));
+  document.querySelector('meta[property="og:title"]')?.setAttribute('content', i18n('ogTitle'));
+  document.querySelector('meta[property="og:description"]')?.setAttribute('content', i18n('ogDescription'));
+}
+
+function renderShared() {
+  formatsLabel.textContent = i18n('formatsLabel');
+  formatsList.innerHTML = SUPPORTED_FORMATS
+    .map((f) => `<li><i data-lucide="${FORMAT_ICONS[f]}" aria-hidden="true"></i><span>${f}</span></li>`)
+    .join('');
+  formatsMax.textContent = i18n('maxSize').replace('{mb}', MAX_FILE_SIZE_MB);
+
+  skipLink.textContent = i18n('skipLink');
+  langLabel.textContent = i18n('langLabel');
+  newTabNote.textContent = i18n('opensNewTab');
+  tabList.setAttribute('aria-label', i18n('tabsLabel'));
+  addTabBtn.dataset.tooltip = i18n('newTabTitle');
+  addTabBtn.setAttribute('aria-label', i18n('newTabTitle'));
+
+  renderPageMeta();
+  refreshIcons();
+}
+
+function createTab() {
+  const tab = new TabInstance(`tab-${++tabSeq}`);
+  tabs.push(tab);
+  activateTab(tab.id);
+  refreshIcons();
+  return tab;
+}
+
+function activateTab(id, focusTab = false) {
+  activeTabId = id;
+
+  tabs.forEach((tab) => {
+    const active = tab.id === id;
+    tab.isActive = active;
+    tab.header.classList.toggle('active', active);
+    tab.tabBtn.setAttribute('aria-selected', String(active));
+    tab.tabBtn.tabIndex = active ? 0 : -1;
+    tab.body.hidden = !active;
+    tab.syncModal();
+  });
+
+  const current = tabs.find((t) => t.id === id);
+  if (current && current.state === 'feeding') current.feed();
+
+  if (focusTab && current && current.resultModal.hidden) {
+    current.tabBtn.focus();
+  }
+}
+
+function onTabKeydown(e, id) {
+  const index = tabs.findIndex((t) => t.id === id);
+  let next = null;
+
+  if (e.key === 'ArrowRight') next = tabs[(index + 1) % tabs.length];
+  else if (e.key === 'ArrowLeft') next = tabs[(index - 1 + tabs.length) % tabs.length];
+  else if (e.key === 'Home') next = tabs[0];
+  else if (e.key === 'End') next = tabs[tabs.length - 1];
+
+  if (!next) return;
+  e.preventDefault();
+  activateTab(next.id, true);
 }
 
 function closeTab(id) {
+  const index = tabs.findIndex((t) => t.id === id);
+  if (index === -1) return;
+
   if (tabs.length === 1) {
     tabs[0].reset();
+    tabs[0].chooseBtn.focus();
     return;
   }
 
-  const index = tabs.findIndex(t => t.id === id);
-  if (index !== -1) {
-    tabs[index].destroy();
-    tabs.splice(index, 1);
+  const wasActive = activeTabId === id;
+  const [tab] = tabs.splice(index, 1);
+  tab.destroy();
 
-    if (activeTabId === id) {
-      const nextTab = tabs[index] || tabs[index - 1];
-      activateTab(nextTab.id);
-    }
-
-    reindexTabTitles();
+  if (wasActive) {
+    activateTab((tabs[index] || tabs[index - 1]).id, true);
   }
+
+  reindexTabTitles();
 }
 
 function reindexTabTitles() {
-  const t = typeof translations !== 'undefined' && translations[currentLang] ? translations[currentLang] : {};
-  const baseTitle = t.defaultTabTitle || 'Archivo';
+  tabs.forEach((tab) => tab.refreshHeader());
+}
 
-  tabs.forEach((tab, i) => {
-    if (!tab.selectedFile && !tab.selectedFiles.length) {
-      tab.defaultTitle = `${baseTitle} ${i + 1}`;
-      tab.tabHeader.querySelector('.tab-title').textContent = tab.defaultTitle;
+// =============================================================================
+// 4. INICIALIZACIÓN / INITIALIZATION
+// =============================================================================
+
+function init() {
+  addTabBtn.addEventListener('click', () => createTab().chooseBtn.focus());
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const active = tabs.find((t) => t.id === activeTabId);
+    if (active && active.state === 'done' && !active.resultModal.hidden) {
+      active.dismissResult();
     }
   });
 
-  tabCounter = tabs.length;
+  renderShared();
+  createTab();
 }
 
-// Attach listener to add button & trigger initial tab create
-// Asignar escuchador al botón de añadir e inicializar la primera pestaña
-addTabBtn.addEventListener('click', createTab);
-createTab();
+document.addEventListener('DOMContentLoaded', init);

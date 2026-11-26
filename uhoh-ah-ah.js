@@ -2,6 +2,7 @@
 const translations = {
   es: {
     tagline: "¡Deja que el gorila aplaste tus archivos!",
+    heroText: "Comprime tus archivos 100% gratis",
     formats: "Formatos soportados: <strong>JPG, PNG, WEBP, PDF, MP3, WAV, MP4, WEBM, SVG, JSON, CSV, TXT</strong> (Máx. 100 MB)",
     tabsGuide: "💡 Puedes abrir varias pestañas usando el botón <strong>+</strong> para procesar diferentes archivos al mismo tiempo.",
     rights: "Todos los derechos reservados.",
@@ -33,12 +34,10 @@ const translations = {
     newTabTitle: "Nueva pestaña",
     limitError: "✖ El archivo supera el límite de 100MB",
     unsupportedError: "Tipo de archivo no soportado para compresión directa.",
-    // Alternancia de Modos (Nuevas claves)
     askZipMode: "¿Buscas empaquetar varios archivos en un archivo comprimido?",
     btnToZip: "Armar un archivo .ZIP",
     askCompressMode: "¿Quieres reducir el tamaño o peso de un archivo individual?",
     btnToCompress: "Reducir peso de archivo",
-    // Métodos
     imgMethod: "Optimización Visual",
     imgDesc: "Reajusta las dimensiones de la imagen, elimina datos no visibles y equilibra la calidad para reducir peso sin perder detalle.",
     pdfMethod: "Optimización de Estructura",
@@ -51,11 +50,61 @@ const translations = {
     textDesc: "Elimina espacios en blanco, saltos de línea y tabulaciones innecesarias dentro del archivo sin alterar su contenido.",
     zipMethod: "Empaquetado ZIP",
     zipDesc: "Agrupa múltiples archivos dentro de un contenedor comprimido .ZIP sin pérdidas de calidad.",
-    // Tooltip
-    bananaTooltip: "🍌 ¡Arrástrame hacia el gorila!"
+    bananaTooltip: "🍌 ¡Arrástrame hacia el gorila!",
+
+    formatsLabel: "Formatos soportados:",
+    maxSize: "Máx. {mb} MB",
+    successText: "¡Listo! Tu archivo quedó aplastado.",
+    savedPercent: "Reducido en {p}%",
+    finalSize: "Tamaño final: {size}",
+    again: "Comprimir otro archivo",
+    metaDescription: "Comprime tus archivos de forma privada, rápida y gratuita, directamente en tu navegador con Gorilla Compresor de Archivos.",
+    ogTitle: "Gorilla Compresor de Archivos",
+    ogDescription: "¡Deja que el gorila aplaste tus archivos! Compresión rápida de imágenes, PDFs y mucho más.",
+    chooseFile: "Elegir archivo",
+    tabsLabel: "Archivos abiertos",
+    closeTab: "Cerrar pestaña",
+    closeResult: "Cerrar",
+    skipLink: "Ir al contenido principal",
+    langLabel: "Idioma",
+    opensNewTab: "(se abre en una pestaña nueva)",
+    loadingEngine: "Cargando motor de video…",
+    queued: "Esperando a que termine otro video…",
+    progressLabel: "Progreso de compresión",
+    encryptedPdf: "Este PDF tiene contraseña y no se puede comprimir.",
+    genericError: "No pudimos procesar este archivo. Prueba con otro.",
+    emptyResult: "El resultado salió vacío. El archivo no se modificó.",
+    imageTooLarge: "Esta imagen tiene demasiados píxeles para procesarla en el navegador.",
+    videoTooLarge: "Los videos de más de 60 MB no se pueden procesar en el navegador.",
+    videoTimeout: "Este video tardó demasiado en procesarse. Prueba con uno más corto o más liviano.",
+    levelLabel: "Nivel de compresión",
+    levelLight: "Ligero",
+    levelBalanced: "Equilibrado",
+    levelStrong: "Fuerte",
+    levelLightDesc: "Mejor calidad, menor reducción",
+    levelBalancedDesc: "Buen equilibrio entre calidad y peso",
+    levelStrongDesc: "Menor peso, algo de pérdida de calidad",
+    levelUnavailable: "No reduce este archivo",
+    checkingLevels: "Analizando opciones de compresión…",
+    noCompressionPossible: "Ninguna opción reduce el peso de este archivo.",
+    noteLossless: "Formato sin pérdida",
+    noteLossy: "Formato con pérdida",
+    notePdf: "Documento",
+    noteMedia: "Audio / video",
+    noteText: "Texto",
+    privacyLabel: "Privacidad",
+    privacyNote: "Tus archivos se procesan en tu propio navegador y nunca se suben a un servidor. La página solo descarga las herramientas de compresión desde servidores públicos.",
+    shareText: "Comprime tus archivos gratis y en privado con Gorilla: se procesan en tu navegador.",
+    shareLabel: "Compartir Gorilla",
+    shareNative: "Compartir…",
+    shareOn: "Compartir en",
+    copyLink: "Copiar enlace",
+    linkCopied: "Enlace copiado",
+    linkCopyError: "No se pudo copiar el enlace"
   },
   en: {
     tagline: "Let the gorilla crush your files!",
+    heroText: "Compress your files 100% free",
     formats: "Supported formats: <strong>JPG, PNG, WEBP, PDF, MP3, WAV, MP4, WEBM, SVG, JSON, CSV, TXT</strong> (Max. 100 MB)",
     tabsGuide: "💡 You can open multiple tabs using the <strong>+</strong> button to process different files simultaneously.",
     rights: "All rights reserved.",
@@ -87,12 +136,10 @@ const translations = {
     newTabTitle: "New tab",
     limitError: "✖ File exceeds 100MB limit",
     unsupportedError: "Unsupported file type for direct compression.",
-    // Alternancia de Modos
     askZipMode: "Looking to package multiple files into a compressed archive?",
     btnToZip: "Create a .ZIP file",
     askCompressMode: "Do you want to reduce the size of an individual file?",
     btnToCompress: "Reduce file size",
-    // Methods
     imgMethod: "Visual Optimization",
     imgDesc: "Resizes dimensions, removes EXIF metadata, and balances quality to shrink file size without losing visible detail.",
     pdfMethod: "Structural Optimization",
@@ -105,11 +152,61 @@ const translations = {
     textDesc: "Strips unnecessary spaces, line breaks, and tabs from the file without affecting actual content.",
     zipMethod: "ZIP Packaging",
     zipDesc: "Bundles multiple files into a compressed lossless .ZIP container.",
-    // Tooltip
-    bananaTooltip: "🍌 Drag me to the gorilla!"
+    bananaTooltip: "🍌 Drag me to the gorilla!",
+
+    formatsLabel: "Supported formats:",
+    maxSize: "Max. {mb} MB",
+    successText: "Done! Your file is squeezed.",
+    savedPercent: "Reduced by {p}%",
+    finalSize: "Final size: {size}",
+    again: "Compress another file",
+    metaDescription: "Compress your files privately, fast and free, right in your browser with Gorilla File Compressor.",
+    ogTitle: "Gorilla File Compressor",
+    ogDescription: "Let the gorilla crush your files! Fast compression for images, PDFs and much more.",
+    chooseFile: "Choose file",
+    tabsLabel: "Open files",
+    closeTab: "Close tab",
+    closeResult: "Close",
+    skipLink: "Skip to main content",
+    langLabel: "Language",
+    opensNewTab: "(opens in a new tab)",
+    loadingEngine: "Loading video engine…",
+    queued: "Waiting for another video to finish…",
+    progressLabel: "Compression progress",
+    encryptedPdf: "This PDF is password-protected and cannot be compressed.",
+    genericError: "We could not compress this file. Try another one.",
+    emptyResult: "The result was empty. The file was not changed.",
+    imageTooLarge: "This image has too many pixels to process in the browser.",
+    videoTooLarge: "Videos over 60 MB cannot be processed in the browser.",
+    videoTimeout: "This video took too long to process. Try a shorter or smaller video.",
+    levelLabel: "Compression level",
+    levelLight: "Light",
+    levelBalanced: "Balanced",
+    levelStrong: "Strong",
+    levelLightDesc: "Best quality, smaller reduction",
+    levelBalancedDesc: "Good balance between quality and size",
+    levelStrongDesc: "Smallest size, some quality loss",
+    levelUnavailable: "Does not reduce this file",
+    checkingLevels: "Checking compression options…",
+    noCompressionPossible: "No compression option reduces this file.",
+    noteLossless: "Lossless format",
+    noteLossy: "Lossy format",
+    notePdf: "Document",
+    noteMedia: "Audio / video",
+    noteText: "Text",
+    privacyLabel: "Privacy",
+    privacyNote: "Your files are processed in your own browser and are never uploaded to a server. The page only downloads the compression tools from public servers.",
+    shareText: "Compress your files free and privately with Gorilla: they're processed in your browser.",
+    shareLabel: "Share Gorilla",
+    shareNative: "Share…",
+    shareOn: "Share on",
+    copyLink: "Copy link",
+    linkCopied: "Link copied",
+    linkCopyError: "Could not copy the link"
   },
   pt: {
     tagline: "Deixe o gorila esmagar seus arquivos!",
+    heroText: "Compacte seus arquivos 100% grátis",
     formats: "Formatos suportados: <strong>JPG, PNG, WEBP, PDF, MP3, WAV, MP4, WEBM, SVG, JSON, CSV, TXT</strong> (Máx. 100 MB)",
     tabsGuide: "💡 Você pode abrir várias abas usando o botão <strong>+</strong> para processar diferentes arquivos ao mesmo tempo.",
     rights: "Todos os direitos reservados.",
@@ -141,12 +238,10 @@ const translations = {
     newTabTitle: "Nova aba",
     limitError: "✖ O arquivo excede o limite de 100MB",
     unsupportedError: "Tipo de arquivo não suportado para compactação direta.",
-    // Alternancia de Modos
     askZipMode: "Deseja empacotar vários arquivos em um arquivo compactado?",
     btnToZip: "Criar um arquivo .ZIP",
     askCompressMode: "Quer reduzir o tamanho de um arquivo individual?",
     btnToCompress: "Reduzir tamanho do arquivo",
-    // Métodos
     imgMethod: "Otimização Visual",
     imgDesc: "Redimensiona imagens, remove metadados EXIF e equilibra a qualidade para reduzir o tamanho sem perder detalhes visíveis.",
     pdfMethod: "Otimização Estrutural",
@@ -159,11 +254,61 @@ const translations = {
     textDesc: "Remove espaços desnecessários, quebras de linha e tabulações do arquivo sem alterar o conteúdo.",
     zipMethod: "Empacotamento ZIP",
     zipDesc: "Agrupa vários arquivos em um contêiner compactado .ZIP sem perda de qualidade.",
-    // Tooltip
-    bananaTooltip: "🍌 Arraste-me para o gorila!"
+    bananaTooltip: "🍌 Arraste-me para o gorila!",
+
+    formatsLabel: "Formatos suportados:",
+    maxSize: "Máx. {mb} MB",
+    successText: "Pronto! Seu arquivo foi esmagado.",
+    savedPercent: "Reduzido em {p}%",
+    finalSize: "Tamanho final: {size}",
+    again: "Comprimir outro arquivo",
+    metaDescription: "Compacte seus arquivos de forma privada, rápida e gratuita, direto no navegador com o Gorilla Compactador de Arquivos.",
+    ogTitle: "Gorilla Compactador de Arquivos",
+    ogDescription: "Deixe o gorila esmagar seus arquivos! Compactação rápida de imagens, PDFs e muito mais.",
+    chooseFile: "Escolher arquivo",
+    tabsLabel: "Arquivos abertos",
+    closeTab: "Fechar aba",
+    closeResult: "Fechar",
+    skipLink: "Ir para o conteúdo principal",
+    langLabel: "Idioma",
+    opensNewTab: "(abre em uma nova aba)",
+    loadingEngine: "Carregando mecanismo de vídeo…",
+    queued: "Aguardando outro vídeo terminar…",
+    progressLabel: "Progresso da compactação",
+    encryptedPdf: "Este PDF tem senha e não pode ser compactado.",
+    genericError: "Não foi possível processar este arquivo. Tente outro.",
+    emptyResult: "O resultado saiu vazio. O arquivo não foi alterado.",
+    imageTooLarge: "Esta imagem tem pixels demais para processar no navegador.",
+    videoTooLarge: "Vídeos com mais de 60 MB não podem ser processados no navegador.",
+    videoTimeout: "Este vídeo demorou demais para ser processado. Tente um vídeo menor ou mais curto.",
+    levelLabel: "Nível de compactação",
+    levelLight: "Leve",
+    levelBalanced: "Equilibrado",
+    levelStrong: "Forte",
+    levelLightDesc: "Melhor qualidade, menor redução",
+    levelBalancedDesc: "Bom equilíbrio entre qualidade e tamanho",
+    levelStrongDesc: "Menor tamanho, com alguma perda de qualidade",
+    levelUnavailable: "Não reduz este arquivo",
+    checkingLevels: "Analisando opções de compactação…",
+    noCompressionPossible: "Nenhuma opção reduz o tamanho deste arquivo.",
+    noteLossless: "Formato sem perda",
+    noteLossy: "Formato com perda",
+    notePdf: "Documento",
+    noteMedia: "Áudio / vídeo",
+    noteText: "Texto",
+    privacyLabel: "Privacidade",
+    privacyNote: "Seus arquivos são processados no seu próprio navegador e nunca são enviados a um servidor. A página só baixa as ferramentas de compactação de servidores públicos.",
+    shareText: "Compacte seus arquivos grátis e com privacidade com o Gorilla: tudo é processado no seu navegador.",
+    shareLabel: "Compartilhar o Gorilla",
+    shareNative: "Compartilhar…",
+    shareOn: "Compartilhar no",
+    copyLink: "Copiar link",
+    linkCopied: "Link copiado",
+    linkCopyError: "Não foi possível copiar o link"
   },
   fr: {
     tagline: "Laissez le gorille écraser vos fichiers !",
+    heroText: "Compressez vos fichiers 100 % gratuitement",
     formats: "Formats supportés : <strong>JPG, PNG, WEBP, PDF, MP3, WAV, MP4, WEBM, SVG, JSON, CSV, TXT</strong> (Max. 100 Mo)",
     tabsGuide: "💡 Vous pouvez ouvrir plusieurs onglets avec le bouton <strong>+</strong> pour traiter différents fichiers simultanément.",
     rights: "Tous droits réservés.",
@@ -195,12 +340,10 @@ const translations = {
     newTabTitle: "Nouvel onglet",
     limitError: "✖ Le fichier dépasse la limite de 100 Mo",
     unsupportedError: "Type de fichier non pris en charge pour la compression directe.",
-    // Alternancia de Modos
     askZipMode: "Vous cherchez à regrouper plusieurs fichiers dans une archive ?",
     btnToZip: "Créer un fichier .ZIP",
     askCompressMode: "Voulez-vous réduire la taille d'un fichier individuel ?",
     btnToCompress: "Réduire la taille du fichier",
-    // Métodes
     imgMethod: "Optimisation Visuelle",
     imgDesc: "Redimensionne les images, supprime les métadonnées et équilibre la qualité pour réduire la taille sans perte visible.",
     pdfMethod: "Optimisation Structurelle",
@@ -213,11 +356,61 @@ const translations = {
     textDesc: "Supprime les espaces inutiles, sauts de ligne et tabulations du fichier sans altérer le contenu.",
     zipMethod: "Empaquetage ZIP",
     zipDesc: "Regroupe plusieurs fichiers dans une archive .ZIP sans perte de qualité.",
-    // Tooltip
-    bananaTooltip: "🍌 Faites-moi glisser vers le gorille !"
+    bananaTooltip: "🍌 Faites-moi glisser vers le gorille !",
+
+    formatsLabel: "Formats supportés :",
+    maxSize: "Max. {mb} Mo",
+    successText: "Terminé ! Votre fichier est écrasé.",
+    savedPercent: "Réduit de {p} %",
+    finalSize: "Taille finale : {size}",
+    again: "Compresser un autre fichier",
+    metaDescription: "Compressez vos fichiers de manière privée, rapide et gratuite, directement dans votre navigateur avec Gorilla Compresseur de fichiers.",
+    ogTitle: "Gorilla Compresseur de fichiers",
+    ogDescription: "Laissez le gorille écraser vos fichiers ! Compression rapide pour images, PDF et bien plus.",
+    chooseFile: "Choisir un fichier",
+    tabsLabel: "Fichiers ouverts",
+    closeTab: "Fermer l'onglet",
+    closeResult: "Fermer",
+    skipLink: "Aller au contenu principal",
+    langLabel: "Langue",
+    opensNewTab: "(s'ouvre dans un nouvel onglet)",
+    loadingEngine: "Chargement du moteur vidéo…",
+    queued: "En attente de la fin d'une autre vidéo…",
+    progressLabel: "Progression de la compression",
+    encryptedPdf: "Ce PDF est protégé par un mot de passe et ne peut pas être compressé.",
+    genericError: "Impossible de compresser ce fichier. Essayez-en un autre.",
+    emptyResult: "Le résultat est vide. Le fichier n'a pas été modifié.",
+    imageTooLarge: "Cette image contient trop de pixels pour être traitée dans le navigateur.",
+    videoTooLarge: "Les vidéos de plus de 60 Mo ne peuvent pas être traitées dans le navigateur.",
+    videoTimeout: "Cette vidéo a mis trop de temps à être traitée. Essayez une vidéo plus courte ou plus légère.",
+    levelLabel: "Niveau de compression",
+    levelLight: "Léger",
+    levelBalanced: "Équilibré",
+    levelStrong: "Fort",
+    levelLightDesc: "Meilleure qualité, réduction moindre",
+    levelBalancedDesc: "Bon équilibre entre qualité et poids",
+    levelStrongDesc: "Poids minimal, légère perte de qualité",
+    levelUnavailable: "Ne réduit pas ce fichier",
+    checkingLevels: "Analyse des options de compression…",
+    noCompressionPossible: "Aucune option de compression ne réduit ce fichier.",
+    noteLossless: "Format sans perte",
+    noteLossy: "Format avec perte",
+    notePdf: "Document",
+    noteMedia: "Audio / vidéo",
+    noteText: "Texte",
+    privacyLabel: "Confidentialité",
+    privacyNote: "Vos fichiers sont traités dans votre propre navigateur et ne sont jamais envoyés à un serveur. La page télécharge uniquement les outils de compression depuis des serveurs publics.",
+    shareText: "Compressez vos fichiers gratuitement et en privé avec Gorilla : tout se fait dans votre navigateur.",
+    shareLabel: "Partager Gorilla",
+    shareNative: "Partager…",
+    shareOn: "Partager sur",
+    copyLink: "Copier le lien",
+    linkCopied: "Lien copié",
+    linkCopyError: "Impossible de copier le lien"
   },
   de: {
     tagline: "Lass den Gorilla deine Dateien zerquetschen!",
+    heroText: "Komprimiere deine Dateien 100 % kostenlos",
     formats: "Unterstützte Formate: <strong>JPG, PNG, WEBP, PDF, MP3, WAV, MP4, WEBM, SVG, JSON, CSV, TXT</strong> (Max. 100 MB)",
     tabsGuide: "💡 Nutze die <strong>+</strong> Schaltfläche, um mehrere Tabs zu öffnen und Dateien gleichzeitig zu verarbeiten.",
     rights: "Alle Rechte vorbehalten.",
@@ -249,12 +442,10 @@ const translations = {
     newTabTitle: "Neuer Tab",
     limitError: "✖ Datei überschreitet das Limit von 100 MB",
     unsupportedError: "Nicht unterstützter Dateityp für direkte Komprimierung.",
-    // Alternancia de Modos
     askZipMode: "Möchtest du mehrere Dateien in einem ZIP-Archiv bündeln?",
     btnToZip: "ZIP-Datei erstellen",
     askCompressMode: "Möchtest du die Größe einer einzelnen Datei reduzieren?",
     btnToCompress: "Dateigröße reduzieren",
-    // Methoden
     imgMethod: "Visuelle Optimierung",
     imgDesc: "Passt Bildabmessungen an, entfernt EXIF-Metadaten und optimiert die Qualität für kleinere Dateigrößen.",
     pdfMethod: "Strukturelle Optimierung",
@@ -267,11 +458,61 @@ const translations = {
     textDesc: "Entfernt unnötige Leerzeichen, Zeilenumbrüche und Tabs, ohne den eigentlichen Inhalt zu verändern.",
     zipMethod: "ZIP-Komprimierung",
     zipDesc: "Bündelt mehrere Dateien verlustfrei in einem komprimierten .ZIP-Container.",
-    // Tooltip
-    bananaTooltip: "🍌 Zieh mich zum Gorilla!"
+    bananaTooltip: "🍌 Zieh mich zum Gorilla!",
+
+    formatsLabel: "Unterstützte Formate:",
+    maxSize: "Max. {mb} MB",
+    successText: "Fertig! Deine Datei wurde zerquetscht.",
+    savedPercent: "Um {p}% verkleinert",
+    finalSize: "Endgröße: {size}",
+    again: "Weitere Datei komprimieren",
+    metaDescription: "Komprimiere deine Dateien privat, schnell und kostenlos direkt im Browser mit dem Gorilla Dateikomprimierer.",
+    ogTitle: "Gorilla Dateikomprimierer",
+    ogDescription: "Lass den Gorilla deine Dateien zerquetschen! Schnelle Komprimierung für Bilder, PDFs und mehr.",
+    chooseFile: "Datei auswählen",
+    tabsLabel: "Geöffnete Dateien",
+    closeTab: "Tab schließen",
+    closeResult: "Schließen",
+    skipLink: "Zum Hauptinhalt springen",
+    langLabel: "Sprache",
+    opensNewTab: "(öffnet in neuem Tab)",
+    loadingEngine: "Videomotor wird geladen…",
+    queued: "Warten, bis ein anderes Video fertig ist…",
+    progressLabel: "Fortschritt der Komprimierung",
+    encryptedPdf: "Diese PDF ist passwortgeschützt und kann nicht komprimiert werden.",
+    genericError: "Diese Datei konnte nicht komprimiert werden. Probiere eine andere.",
+    emptyResult: "Das Ergebnis war leer. Die Datei wurde nicht verändert.",
+    imageTooLarge: "Dieses Bild hat zu viele Pixel für die Verarbeitung im Browser.",
+    videoTooLarge: "Videos über 60 MB können im Browser nicht verarbeitet werden.",
+    videoTimeout: "Die Verarbeitung dieses Videos hat zu lange gedauert. Probiere ein kürzeres oder kleineres Video.",
+    levelLabel: "Komprimierungsstufe",
+    levelLight: "Leicht",
+    levelBalanced: "Ausgewogen",
+    levelStrong: "Stark",
+    levelLightDesc: "Beste Qualität, geringere Reduktion",
+    levelBalancedDesc: "Gute Balance zwischen Qualität und Größe",
+    levelStrongDesc: "Kleinste Größe, etwas Qualitätsverlust",
+    levelUnavailable: "Reduziert diese Datei nicht",
+    checkingLevels: "Komprimierungsoptionen werden geprüft…",
+    noCompressionPossible: "Keine Komprimierungsoption verkleinert diese Datei.",
+    noteLossless: "Verlustfreies Format",
+    noteLossy: "Verlustbehaftetes Format",
+    notePdf: "Dokument",
+    noteMedia: "Audio / Video",
+    noteText: "Text",
+    privacyLabel: "Datenschutz",
+    privacyNote: "Deine Dateien werden in deinem eigenen Browser verarbeitet und nie auf einen Server hochgeladen. Die Seite lädt nur die Komprimierungswerkzeuge von öffentlichen Servern.",
+    shareText: "Komprimiere deine Dateien kostenlos und privat mit Gorilla: alles läuft in deinem Browser.",
+    shareLabel: "Gorilla teilen",
+    shareNative: "Teilen…",
+    shareOn: "Teilen auf",
+    copyLink: "Link kopieren",
+    linkCopied: "Link kopiert",
+    linkCopyError: "Link konnte nicht kopiert werden"
   },
   it: {
     tagline: "Lascia che il gorilla schiacci i tuoi file!",
+    heroText: "Comprimi i tuoi file 100% gratis",
     formats: "Formati supportati: <strong>JPG, PNG, WEBP, PDF, MP3, WAV, MP4, WEBM, SVG, JSON, CSV, TXT</strong> (Max. 100 MB)",
     tabsGuide: "💡 Puoi aprire più schede usando il pulsante <strong>+</strong> per elaborare più file contemporaneamente.",
     rights: "Tutti i diritti riservati.",
@@ -302,13 +543,11 @@ const translations = {
     defaultTabTitle: "File",
     newTabTitle: "Nuova scheda",
     limitError: "✖ Il file supera il limite di 100 MB",
-    unsupportedError: "Tipo di file non supportato per la compressione directa.",
-    // Alternancia de Modos
+    unsupportedError: "Tipo di file non supportato per la compressione diretta.",
     askZipMode: "Vuoi raggruppare più file in un unico archivio compresso?",
     btnToZip: "Crea un file .ZIP",
     askCompressMode: "Vuoi ridurre le dimensioni di un singolo file?",
     btnToCompress: "Riduci dimensione file",
-    // Metodi
     imgMethod: "Ottimizzazione Visiva",
     imgDesc: "Ridimensiona le immagini, rimuove i metadati ed equilibra la qualità per ridurre lo spazio occupato.",
     pdfMethod: "Ottimizzazione Strutturale",
@@ -321,11 +560,61 @@ const translations = {
     textDesc: "Rimuove spazi vuoti, interruzioni di riga e tabulazioni non necessarie senza alterare il contenuto.",
     zipMethod: "Impacchettamento ZIP",
     zipDesc: "Raggruppa più file in un contenitore compresso .ZIP senza perdita di qualità.",
-    // Tooltip
-    bananaTooltip: "🍌 Trascinami verso il gorilla!"
+    bananaTooltip: "🍌 Trascinami verso il gorilla!",
+
+    formatsLabel: "Formati supportati:",
+    maxSize: "Max. {mb} MB",
+    successText: "Fatto! Il tuo file è stato schiacciato.",
+    savedPercent: "Ridotto del {p}%",
+    finalSize: "Dimensione finale: {size}",
+    again: "Comprimi un altro file",
+    metaDescription: "Comprimi i tuoi file in modo privato, veloce e gratuito, direttamente nel browser con Gorilla Compressore di File.",
+    ogTitle: "Gorilla Compressore di File",
+    ogDescription: "Lascia che il gorilla schiacci i tuoi file! Compressione rapida per immagini, PDF e molto altro.",
+    chooseFile: "Scegli un file",
+    tabsLabel: "File aperti",
+    closeTab: "Chiudi scheda",
+    closeResult: "Chiudi",
+    skipLink: "Vai al contenuto principale",
+    langLabel: "Lingua",
+    opensNewTab: "(si apre in una nuova scheda)",
+    loadingEngine: "Caricamento del motore video…",
+    queued: "In attesa che termini un altro video…",
+    progressLabel: "Avanzamento della compressione",
+    encryptedPdf: "Questo PDF è protetto da password e non può essere compresso.",
+    genericError: "Impossibile comprimere questo file. Prova con un altro.",
+    emptyResult: "Il risultato è vuoto. Il file non è stato modificato.",
+    imageTooLarge: "Questa immagine ha troppi pixel per essere elaborata nel browser.",
+    videoTooLarge: "I video di oltre 60 MB non possono essere elaborati nel browser.",
+    videoTimeout: "L'elaborazione di questo video ha richiesto troppo tempo. Prova con un video più corto o più leggero.",
+    levelLabel: "Livello di compressione",
+    levelLight: "Leggero",
+    levelBalanced: "Bilanciato",
+    levelStrong: "Forte",
+    levelLightDesc: "Qualità migliore, riduzione minore",
+    levelBalancedDesc: "Buon equilibrio tra qualità e peso",
+    levelStrongDesc: "Peso minimo, leggera perdita di qualità",
+    levelUnavailable: "Non riduce questo file",
+    checkingLevels: "Analisi delle opzioni di compressione…",
+    noCompressionPossible: "Nessuna opzione di compressione riduce questo file.",
+    noteLossless: "Formato senza perdita",
+    noteLossy: "Formato con perdita",
+    notePdf: "Documento",
+    noteMedia: "Audio / video",
+    noteText: "Testo",
+    privacyLabel: "Privacy",
+    privacyNote: "I tuoi file vengono elaborati nel tuo browser e non vengono mai caricati su un server. La pagina scarica solo gli strumenti di compressione da server pubblici.",
+    shareText: "Comprimi i tuoi file gratis e in privato con Gorilla: tutto avviene nel tuo browser.",
+    shareLabel: "Condividi Gorilla",
+    shareNative: "Condividi…",
+    shareOn: "Condividi su",
+    copyLink: "Copia link",
+    linkCopied: "Link copiato",
+    linkCopyError: "Impossibile copiare il link"
   },
   vi: {
     tagline: "Hãy để chú khỉ đột nghiền nát tệp của bạn!",
+    heroText: "Nén tệp của bạn 100% miễn phí",
     formats: "Định dạng hỗ trợ: <strong>JPG, PNG, WEBP, PDF, MP3, WAV, MP4, WEBM, SVG, JSON, CSV, TXT</strong> (Tối đa 100 MB)",
     tabsGuide: "💡 Bạn có thể mở nhiều thẻ bằng nút <strong>+</strong> để xử lý các tệp khác nhau cùng lúc.",
     rights: "Đã đăng ký bản quyền.",
@@ -357,12 +646,10 @@ const translations = {
     newTabTitle: "Thẻ mới",
     limitError: "✖ Tệp vượt quá giới hạn 100MB",
     unsupportedError: "Loại tệp không được hỗ trợ nén trực tiếp.",
-    // Alternancia de Modos
     askZipMode: "Bạn muốn đóng gói nhiều tệp vào một tệp nén?",
     btnToZip: "Tạo tệp .ZIP",
     askCompressMode: "Bạn muốn giảm kích thước của một tệp riêng lẻ?",
     btnToCompress: "Giảm kích thước tệp",
-    // Methods
     imgMethod: "Tối ưu hóa hình ảnh",
     imgDesc: "Điều chỉnh kích thước, xóa dữ liệu ẩn EXIF và cân bằng chất lượng để giảm dung lượng mà không làm mất chi tiết.",
     pdfMethod: "Tối ưu hóa cấu trúc",
@@ -375,19 +662,68 @@ const translations = {
     textDesc: "Xóa các khoảng trắng, dòng trống và tab thừa trong tệp mà không làm thay đổi nội dung.",
     zipMethod: "Đóng gói ZIP",
     zipDesc: "Gom nhiều tệp vào một tệp nén .ZIP mà không làm giảm chất lượng.",
-    // Tooltip
-    bananaTooltip: "🍌 Kéo tôi đến chỗ chú khỉ đột!"
+    bananaTooltip: "🍌 Kéo tôi đến chỗ chú khỉ đột!",
+
+    formatsLabel: "Định dạng hỗ trợ:",
+    maxSize: "Tối đa {mb} MB",
+    successText: "Xong! Tệp của bạn đã được nén.",
+    savedPercent: "Giảm {p}%",
+    finalSize: "Dung lượng cuối: {size}",
+    again: "Nén tệp khác",
+    metaDescription: "Nén tệp của bạn một cách riêng tư, nhanh chóng và miễn phí ngay trên trình duyệt với Gorilla Nén Tệp.",
+    ogTitle: "Gorilla Nén Tệp",
+    ogDescription: "Hãy để chú khỉ đột nghiền nát tệp của bạn! Nén nhanh cho hình ảnh, PDF và nhiều hơn nữa.",
+    chooseFile: "Chọn tệp",
+    tabsLabel: "Tệp đang mở",
+    closeTab: "Đóng thẻ",
+    closeResult: "Đóng",
+    skipLink: "Chuyển đến nội dung chính",
+    langLabel: "Ngôn ngữ",
+    opensNewTab: "(mở trong thẻ mới)",
+    loadingEngine: "Đang tải bộ xử lý video…",
+    queued: "Đang chờ video khác xử lý xong…",
+    progressLabel: "Tiến trình nén",
+    encryptedPdf: "PDF này có mật khẩu nên không thể nén.",
+    genericError: "Không thể nén tệp này. Hãy thử tệp khác.",
+    emptyResult: "Kết quả bị rỗng. Tệp không được thay đổi.",
+    imageTooLarge: "Hình ảnh này có quá nhiều điểm ảnh để xử lý trên trình duyệt.",
+    videoTooLarge: "Video trên 60 MB không thể xử lý trên trình duyệt.",
+    videoTimeout: "Video này xử lý quá lâu. Hãy thử video ngắn hơn hoặc nhẹ hơn.",
+    levelLabel: "Mức nén",
+    levelLight: "Nhẹ",
+    levelBalanced: "Cân bằng",
+    levelStrong: "Mạnh",
+    levelLightDesc: "Chất lượng tốt nhất, giảm ít hơn",
+    levelBalancedDesc: "Cân bằng giữa chất lượng và dung lượng",
+    levelStrongDesc: "Dung lượng nhỏ nhất, mất một ít chất lượng",
+    levelUnavailable: "Không giảm được tệp này",
+    checkingLevels: "Đang kiểm tra các tùy chọn nén…",
+    noCompressionPossible: "Không có tùy chọn nén nào giảm được tệp này.",
+    noteLossless: "Định dạng không mất dữ liệu",
+    noteLossy: "Định dạng có mất dữ liệu",
+    notePdf: "Tài liệu",
+    noteMedia: "Âm thanh / video",
+    noteText: "Văn bản",
+    privacyLabel: "Quyền riêng tư",
+    privacyNote: "Tệp của bạn được xử lý ngay trên trình duyệt và không bao giờ được tải lên máy chủ. Trang chỉ tải các công cụ nén từ máy chủ công cộng.",
+    shareText: "Nén tệp miễn phí và riêng tư với Gorilla: mọi thứ được xử lý ngay trên trình duyệt của bạn.",
+    shareLabel: "Chia sẻ Gorilla",
+    shareNative: "Chia sẻ…",
+    shareOn: "Chia sẻ lên",
+    copyLink: "Sao chép liên kết",
+    linkCopied: "Đã sao chép liên kết",
+    linkCopyError: "Không thể sao chép liên kết"
   }
 };
 
-let currentLang = 'es';
+let currentLang = 'en';
 
 function setLanguage(lang) {
   if (!translations[lang]) return;
   currentLang = lang;
   document.documentElement.lang = lang;
 
-  // 1. Actualizar elementos estáticos etiquetados con data-i18n
+  // 1. Textos etiquetados con data-i18n (innerHTML)
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (translations[lang][key]) {
@@ -395,16 +731,27 @@ function setLanguage(lang) {
     }
   });
 
-  // 2. Actualizar atributos explícitos del DOM fuera de las pestañas
-  const addTabBtn = document.getElementById('addTabBtn');
-  if (addTabBtn) addTabBtn.title = translations[lang].newTabTitle;
+  // 1b. Tooltips etiquetados con data-i18n-tooltip (se escriben en data-tooltip)
+  document.querySelectorAll('[data-i18n-tooltip]').forEach(el => {
+    const key = el.getAttribute('data-i18n-tooltip');
+    if (translations[lang][key]) {
+      el.dataset.tooltip = translations[lang][key];
+    }
+  });
 
-  // 3. Actualizar el tooltip del sistema de física de la banana
+  // 2. Tooltip del botón "+"
+  const addTabBtn = document.getElementById('addTabBtn');
+  if (addTabBtn) {
+    addTabBtn.dataset.tooltip = translations[lang].newTabTitle;
+    addTabBtn.setAttribute('aria-label', translations[lang].newTabTitle);
+  }
+
+  // 3. Tooltip de la banana
   if (typeof bananaSystem !== 'undefined' && typeof bananaSystem.updateLanguage === 'function') {
     bananaSystem.updateLanguage(lang);
   }
 
-  // 4. Iterar y actualizar TODAS las instancias de pestañas
+  // 4. Pestañas abiertas
   if (typeof tabs !== 'undefined' && Array.isArray(tabs)) {
     tabs.forEach(tab => {
       if (typeof tab.updateLanguage === 'function') {
@@ -423,7 +770,6 @@ document.addEventListener('DOMContentLoaded', () => {
       setLanguage(e.target.value);
     });
   }
-  
-  // Sincronizar idioma inicial al cargar la página
+
   setLanguage(currentLang);
 });

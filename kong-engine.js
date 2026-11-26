@@ -1,5 +1,5 @@
 // =============================================================================
-// 1. CONFIGURACIÓN INICIAL Y TRADUCCIONES / INITIAL CONFIG & I18N
+// 1. CONFIGURACIÓN INICIAL / INITIAL CONFIG
 // =============================================================================
 
 // Worker de PDF.js / PDF.js Worker setup
@@ -9,16 +9,33 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 const MAX_FILE_SIZE_MB = 100;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+// El video se procesa en memoria dentro del navegador: el límite es más bajo
+const MAX_VIDEO_SIZE_MB = 60;
+const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
+
+// Tiempo máximo por video antes de liberar la cola. Ajústalo con tus pruebas.
+const VIDEO_TIMEOUT_MS = 5 * 60 * 1000;
+
+// Parámetros de cada nivel de compresión (los usan imágenes, audio y video)
+const LEVEL_PARAMS = {
+  light:    { imgQuality: 0.85, imgMaxSide: 2560, audioKbps: 192, videoCrf: 23, videoMaxW: 1080 },
+  balanced: { imgQuality: 0.7,  imgMaxSide: 1920, audioKbps: 128, videoCrf: 28, videoMaxW: 720 },
+  strong:   { imgQuality: 0.5,  imgMaxSide: 1280, audioKbps: 96,  videoCrf: 32, videoMaxW: 480 }
+};
+
 const BANANA_I18N = {
-  es: '¡Arrástrame hacia el gorila!',
   en: 'Drag me to the gorilla!',
+  es: '¡Arrástrame hacia el gorila!',
   pt: 'Arraste-me para o gorila!',
   fr: 'Faites-moi glisser vers le gorille!',
-  de: 'Zieh mich zum Gorilla!'
+  de: 'Zieh mich zum Gorilla!',
+  it: 'Trascinami verso il gorilla!',
+  vi: 'Kéo tôi đến chỗ chú khỉ đột!'
 };
 
 // =============================================================================
 // 2. SINTETIZADOR DE AUDIO / WEB AUDIO API SYNTH (SINGLETON)
+// Solo se usa el sonido al comer el plátano.
 // =============================================================================
 
 let audioCtx = null;
@@ -31,60 +48,6 @@ function getAudioContext() {
     audioCtx.resume();
   }
   return audioCtx;
-}
-
-function playSquishSound() {
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-
-    // Oscilador de Impacto / Impact Oscillator
-    const osc = ctx.createOscillator();
-    const oscGain = ctx.createGain();
-
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(140, now);
-    osc.frequency.exponentialRampToValueAtTime(20, now + 0.12);
-
-    oscGain.gain.setValueAtTime(0.6, now);
-    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
-
-    osc.connect(oscGain);
-    oscGain.connect(ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.12);
-
-    // Ruido Blanco / White Noise
-    const bufferSize = ctx.sampleRate * 0.15;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-
-    const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(800, now);
-    filter.frequency.linearRampToValueAtTime(200, now + 0.15);
-
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.4, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-
-    noise.connect(filter);
-    filter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
-
-    noise.start(now);
-    noise.stop(now + 0.15);
-
-  } catch (e) {
-    console.warn('Audio Context error:', e);
-  }
 }
 
 function playEatSound() {
@@ -113,10 +76,11 @@ function playEatSound() {
 }
 
 // =============================================================================
-// 3. COMPRESIÓN Y PROCESAMIENTO DE ARCHIVOS / FILE COMPRESSION & PROCESSING HELPERS
+// 3. COMPRESIÓN DE AUDIO Y VIDEO / AUDIO & VIDEO COMPRESSION HELPERS
 // =============================================================================
 
-async function compressAudioFile(file, targetBitrate = 128) {
+// onProgress recibe un número de 0 a 1 mientras codifica
+async function compressAudioFile(file, targetBitrate = 128, onProgress = () => {}) {
   const arrayBuffer = await file.arrayBuffer();
   const ctx = getAudioContext();
   const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
@@ -140,11 +104,11 @@ async function compressAudioFile(file, targetBitrate = 128) {
     const currentBlockSize = Math.min(chunkSize, sampleLength - i);
 
     for (let j = 0; j < currentBlockSize; j++) {
-      let sL = leftSamples[i + j];
+      const sL = leftSamples[i + j];
       leftChunkInt[j] = sL < 0 ? sL * 32768 : sL * 32767;
 
       if (numChannels > 1) {
-        let sR = rightSamples[i + j];
+        const sR = rightSamples[i + j];
         rightChunkInt[j] = sR < 0 ? sR * 32768 : sR * 32767;
       }
     }
@@ -152,7 +116,7 @@ async function compressAudioFile(file, targetBitrate = 128) {
     const lSub = currentBlockSize === chunkSize ? leftChunkInt : leftChunkInt.subarray(0, currentBlockSize);
     const rSub = currentBlockSize === chunkSize ? rightChunkInt : rightChunkInt.subarray(0, currentBlockSize);
 
-    const mp3buf = numChannels > 1 
+    const mp3buf = numChannels > 1
       ? mp3encoder.encodeBuffer(lSub, rSub)
       : mp3encoder.encodeBuffer(lSub);
 
@@ -160,6 +124,7 @@ async function compressAudioFile(file, targetBitrate = 128) {
 
     yieldCounter++;
     if (yieldCounter % 100 === 0) {
+      onProgress(i / sampleLength);
       await new Promise(resolve => setTimeout(resolve, 0));
     }
   }
@@ -170,86 +135,128 @@ async function compressAudioFile(file, targetBitrate = 128) {
   return new Blob(mp3Data, { type: 'audio/mp3' });
 }
 
-let ffmpegInstance = null;
+// ----- Motor de video (FFmpeg) -----
+// Un solo motor compartido: se carga la primera vez y las tareas van en fila,
+// porque FFmpeg no puede ejecutar dos trabajos a la vez.
 
-async function compressVideoFile(file) {
-  const { createFFmpeg, fetchFile } = FFmpeg;
-  if (!ffmpegInstance) {
-    ffmpegInstance = createFFmpeg({ log: false });
-    await ffmpegInstance.load();
+let ffmpegInstance = null;
+let ffmpegLoading = null;
+let videoQueue = Promise.resolve();
+let videoJobsPending = 0;
+let currentVideoProgress = null;
+
+function getFFmpeg() {
+  if (ffmpegInstance) return Promise.resolve(ffmpegInstance);
+
+  if (!ffmpegLoading) {
+    ffmpegLoading = (async () => {
+      const { createFFmpeg } = FFmpeg;
+      const ff = createFFmpeg({ log: false });
+
+      ff.setProgress(({ ratio }) => {
+        if (!currentVideoProgress) return;
+        const value = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : null;
+        currentVideoProgress(value);
+      });
+
+      await ff.load();
+      ffmpegInstance = ff;
+      return ff;
+    })().catch((err) => {
+      // Si la carga falla, se permite reintentar en la siguiente tarea
+      ffmpegLoading = null;
+      throw err;
+    });
   }
 
-  const inputName = `input_${Date.now()}_${file.name}`;
-  const outputName = `compressed_${Date.now()}.mp4`;
-
-  ffmpegInstance.FS('writeFile', inputName, await fetchFile(file));
-
-  await ffmpegInstance.run(
-    '-i', inputName,
-    '-vf', "scale='min(720,iw)':-2",
-    '-crf', '28',
-    '-preset', 'ultrafast',
-    outputName
-  );
-
-  const data = ffmpegInstance.FS('readFile', outputName);
-
-  ffmpegInstance.FS('unlink', inputName);
-  ffmpegInstance.FS('unlink', outputName);
-
-  return new Blob([data.buffer], { type: 'video/mp4' });
+  return ffmpegLoading;
 }
 
-async function compressImageFile(file, quality = 0.75, maxWidth = 1920) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
+function inputExtension(name) {
+  const match = name.match(/\.([a-z0-9]+)$/i);
+  return match ? match[1].toLowerCase() : 'mp4';
+}
 
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let width = img.width;
-      let height = img.height;
+async function runVideoCompression(file, onProgress, level) {
+  if (!ffmpegInstance) onProgress({ phase: 'loading' });
+  const ff = await getFFmpeg();
+  const { fetchFile } = FFmpeg;
+  const p = LEVEL_PARAMS[level] || LEVEL_PARAMS.balanced;
 
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
+  // Nombres internos fijos: evita caracteres problemáticos del nombre original
+  const id = Date.now();
+  const inputName = `input_${id}.${inputExtension(file.name)}`;
+  const outputName = `output_${id}.mp4`;
 
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
+  onProgress({ phase: 'video', ratio: null });
+  currentVideoProgress = (ratio) => onProgress({ ratio });
 
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
+  try {
+    ff.FS('writeFile', inputName, await fetchFile(file));
 
-      // Respetar el MIME type de entrada / Respect input MIME type for JPEG/PNG
-      const targetMime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    await ff.run(
+      '-i', inputName,
+      '-vf', `scale='min(${p.videoMaxW},iw)':-2`,
+      '-crf', String(p.videoCrf),
+      '-preset', 'ultrafast',
+      '-pix_fmt', 'yuv420p', // formato de color que reproducen todos los navegadores
+      outputName
+    );
 
-      canvas.toBlob(
-        (blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('Error al comprimir la imagen.'));
-        },
-        targetMime,
-        quality
-      );
-    };
+    const data = ff.FS('readFile', outputName);
+    return new Blob([data], { type: 'video/mp4' });
+  } finally {
+    currentVideoProgress = null;
+    for (const name of [inputName, outputName]) {
+      try { ff.FS('unlink', name); } catch (_) { /* ya no existe */ }
+    }
+  }
+}
 
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('No se pudo cargar la imagen.'));
-    };
-
-    img.src = url;
+// Corta una promesa si tarda más de `ms` milisegundos
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error('video-timeout');
+      err.code = 'VIDEO_TIMEOUT';
+      reject(err);
+    }, ms);
   });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// Encola la tarea: si hay otra en curso, avisa con la fase "queued".
+// Si una tarea supera VIDEO_TIMEOUT_MS, se libera la cola y el motor se recarga en el próximo uso.
+function compressVideoFile(file, onProgress = () => {}, level = 'balanced') {
+  if (videoJobsPending > 0) onProgress({ phase: 'queued' });
+  videoJobsPending++;
+
+  const job = videoQueue.then(() =>
+    withTimeout(runVideoCompression(file, onProgress, level), VIDEO_TIMEOUT_MS)
+      .catch((err) => {
+        if (err && err.code === 'VIDEO_TIMEOUT') {
+          // El motor puede seguir ocupado: se descarta y se carga de nuevo
+          ffmpegInstance = null;
+          ffmpegLoading = null;
+        }
+        throw err;
+      })
+  );
+
+  videoQueue = job.then(() => {}, () => {}).finally(() => {
+    videoJobsPending--;
+  });
+
+  return job;
 }
 
 // =============================================================================
-// 4. MOTOR DE FÍSICAS DEL BANANO / BANANA PHYSICS ENGINE CLASS
+// 4. MOTOR DE FÍSICAS DEL PLÁTANO / BANANA PHYSICS ENGINE CLASS
 // =============================================================================
 
 class BananaPhysics {
-  constructor(canvasId, lang = 'es') {
+  constructor(canvasId, lang = 'en') {
     this.canvas = document.getElementById(canvasId);
     if (!this.canvas) {
       this.canvas = document.createElement('canvas');
@@ -282,7 +289,10 @@ class BananaPhysics {
     this.isEaten = true;
     this.animId = null;
     this.gorillaEl = null;
+    this.onEaten = null; // se ejecuta una sola vez cuando el gorila se come el plátano
     this.lastTime = 0;
+    this.dragOffsetX = 0;
+    this.dragOffsetY = 0;
 
     this.createTooltip();
 
@@ -315,7 +325,7 @@ class BananaPhysics {
   updateLanguage(lang) {
     this.currentLang = lang;
     if (this.tooltip) {
-      this.tooltip.textContent = BANANA_I18N[lang] || BANANA_I18N['es'];
+      this.tooltip.textContent = BANANA_I18N[lang] || BANANA_I18N.en;
     }
   }
 
@@ -324,8 +334,11 @@ class BananaPhysics {
     this.canvas.height = window.innerHeight;
   }
 
-  spawn(gorillaElement) {
+  // Cada plátano cae desde arriba en una posición aleatoria. El gorila es el objetivo:
+  // al tocarlo se lo come y se ejecuta onEaten. Si ya había un plátano en vuelo, este lo reemplaza.
+  spawn(gorillaElement, onEaten = null) {
     this.gorillaEl = gorillaElement;
+    this.onEaten = onEaten;
     this.x = Math.random() * (this.canvas.width - 120) + 60;
     this.y = -40;
     this.vx = (Math.random() - 0.5) * 4;
@@ -337,6 +350,14 @@ class BananaPhysics {
     if (this.tooltip) this.tooltip.style.opacity = '0';
 
     if (!this.animId) this.loop(performance.now());
+  }
+
+  // Retira el plátano en vuelo sin que el gorila lo coma (por ejemplo, si se cierra la pestaña)
+  cancel() {
+    this.isEaten = true;
+    this.onEaten = null;
+    this.gorillaEl = null;
+    if (this.tooltip) this.tooltip.style.opacity = '0';
   }
 
   bindGlobalEvents() {
@@ -416,6 +437,11 @@ class BananaPhysics {
       if (this.gorillaEl) this.gorillaEl.style.transform = 'scale(1)';
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }, 400);
+
+    // Avisa a quien estaba esperando este plátano (solo una vez)
+    const done = this.onEaten;
+    this.onEaten = null;
+    if (done) done();
   }
 
   update(dt) {
@@ -480,7 +506,7 @@ class BananaPhysics {
 }
 
 // Instancia global del sistema de física / Global physics instance
-const bananaSystem = new BananaPhysics('physicsCanvas', 'es');
+const bananaSystem = new BananaPhysics('physicsCanvas', 'en');
 
 // =============================================================================
 // 5. FUNCIONES UTILITARIAS / UTILITY FUNCTIONS
@@ -496,27 +522,6 @@ function escapeHTML(str) {
   );
 }
 
-function getFileEmoji(file) {
-  const type = file.type;
-  const name = file.name.toLowerCase();
-
-  if (type.startsWith('image/')) return '🖼️';
-  if (type === 'application/pdf' || name.endsWith('.pdf')) return '📕';
-  if (
-    type.startsWith('text/') || name.endsWith('.json') ||
-    name.endsWith('.csv') || name.endsWith('.svg') ||
-    name.endsWith('.xml') || name.endsWith('.js') || name.endsWith('.py')
-  ) return '📝';
-  if (type.startsWith('audio/')) return '🎵';
-  if (type.startsWith('video/')) return '🎬';
-  if (
-    name.endsWith('.zip') || name.endsWith('.tar') ||
-    name.endsWith('.gz') || name.endsWith('.rar') || name.endsWith('.7z')
-  ) return '📦';
-
-  return '📄';
-}
-
 function formatBytes(bytes) {
   if (bytes <= 0) return '0 B';
   const k = 1024;
@@ -524,333 +529,3 @@ function formatBytes(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
-
-// =============================================================================
-// 6. CONTROLADOR PRINCIPAL DEL APLICATIVO / MAIN APPLICATION ENGINE (KongEngine)
-// =============================================================================
-
-class KongEngine {
-  constructor() {
-    this.filesList = [];
-    this.generatedZipBlob = null;
-    this.isZipMode = false;
-
-    this.initElements();
-    this.bindEvents();
-    this.updateModeUI();
-  }
-
-  initElements() {
-    this.dropzone = document.getElementById('dropzone');
-    this.fileInput = document.getElementById('fileInput');
-    this.fileListContainer = document.getElementById('fileList');
-    this.gorillaIcon = document.getElementById('gorillaIcon');
-
-    // Vistas / Views
-    this.initialView = document.getElementById('initialView');
-    this.processView = document.getElementById('processView');
-    this.downloadView = document.getElementById('downloadView');
-
-    // Textos de dropzone / Dropzone texts
-    this.dropzoneTitle = document.querySelector('#dropzone [data-i18n="dragDropTitle"]') || document.querySelector('#dropzone h3');
-    this.dropzoneSubtitle = document.querySelector('#dropzone [data-i18n="dragDropSubtitle"]') || document.querySelector('#dropzone p');
-    this.dropzoneIcon = document.querySelector('#dropzone .dropzone-icon');
-    this.processTitle = document.querySelector('#processView h2');
-
-    // Modos / Modes
-    this.switchQuestionZip = document.getElementById('switchQuestionZip');
-    this.switchQuestionCompress = document.getElementById('switchQuestionCompress');
-    this.switchToZipBtn = document.getElementById('switchToZipBtn');
-    this.switchToCompressBtn = document.getElementById('switchToCompressBtn');
-
-    // Botones e interfaz / Buttons & UI components
-    this.btnAddMore = document.getElementById('btnAddMore');
-    this.btnCompress = document.getElementById('btnCompress');
-    this.btnDownload = document.getElementById('btnDownload');
-    this.btnReset = document.getElementById('btnReset');
-    this.progressContainer = document.getElementById('progressContainer');
-    this.progressBar = document.getElementById('progressBar');
-    this.progressText = document.getElementById('progressText');
-    this.zipStats = document.getElementById('zipStats');
-  }
-
-  bindEvents() {
-    if (this.fileInput) {
-      this.fileInput.addEventListener('change', (e) => {
-        if (e.target.files && e.target.files.length > 0) {
-          this.handleFileSelect(e.target.files);
-          e.target.value = '';
-        }
-      });
-    }
-
-    if (this.dropzone) {
-      this.dropzone.addEventListener('click', () => this.fileInput.click());
-
-      this.dropzone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        this.dropzone.classList.add('dragover');
-      });
-
-      this.dropzone.addEventListener('dragleave', () => {
-        this.dropzone.classList.remove('dragover');
-      });
-
-      this.dropzone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        this.dropzone.classList.remove('dragover');
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          this.handleFileSelect(e.dataTransfer.files);
-        }
-      });
-    }
-
-    if (this.btnAddMore) {
-      this.btnAddMore.addEventListener('click', () => this.fileInput.click());
-    }
-
-    // Delegación de eventos para eliminar ítems / Event delegation for item removal
-    if (this.fileListContainer) {
-      this.fileListContainer.addEventListener('click', (e) => {
-        const removeBtn = e.target.closest('.btn-remove');
-        if (removeBtn) {
-          e.stopPropagation();
-          const index = parseInt(removeBtn.getAttribute('data-index'), 10);
-          this.removeFile(index);
-        }
-      });
-    }
-
-    if (this.switchToZipBtn) {
-      this.switchToZipBtn.addEventListener('click', () => {
-        this.isZipMode = true;
-        this.updateModeUI();
-      });
-    }
-
-    if (this.switchToCompressBtn) {
-      this.switchToCompressBtn.addEventListener('click', () => {
-        this.isZipMode = false;
-        this.updateModeUI();
-      });
-    }
-
-    if (this.btnCompress) {
-      this.btnCompress.addEventListener('click', () => this.processAndZipFiles());
-    }
-
-    if (this.btnDownload) {
-      this.btnDownload.addEventListener('click', () => this.triggerDownload());
-    }
-
-    if (this.btnReset) {
-      this.btnReset.addEventListener('click', () => this.resetUI());
-    }
-  }
-
-  updateModeUI() {
-    if (this.fileInput) {
-      if (this.isZipMode) {
-        this.fileInput.setAttribute('multiple', 'true');
-      } else {
-        this.fileInput.removeAttribute('multiple');
-      }
-    }
-
-    if (this.switchQuestionZip && this.switchQuestionCompress) {
-      this.switchQuestionZip.classList.toggle('hidden', this.isZipMode);
-      this.switchQuestionCompress.classList.toggle('hidden', !this.isZipMode);
-    }
-
-    if (this.isZipMode) {
-      if (this.dropzone) {
-        this.dropzone.classList.add('mode-zip');
-        this.dropzone.classList.remove('mode-compress');
-      }
-      if (this.dropzoneTitle) this.dropzoneTitle.textContent = 'Arrastra tus archivos para empaquetarlos';
-      if (this.dropzoneSubtitle) this.dropzoneSubtitle.textContent = 'Selecciona múltiples archivos para unir en un comprimido .ZIP';
-      if (this.btnCompress) this.btnCompress.textContent = 'Crear archivo .ZIP';
-      if (this.processTitle) this.processTitle.textContent = 'Archivos seleccionados para el paquete';
-      if (this.dropzoneIcon) this.dropzoneIcon.textContent = '📦';
-    } else {
-      if (this.dropzone) {
-        this.dropzone.classList.add('mode-compress');
-        this.dropzone.classList.remove('mode-zip');
-      }
-      if (this.dropzoneTitle) this.dropzoneTitle.textContent = 'Arrastra tu archivo aquí';
-      if (this.dropzoneSubtitle) this.dropzoneSubtitle.textContent = 'Selecciona un archivo individual para reducir su peso';
-      if (this.btnCompress) this.btnCompress.textContent = 'Reducir peso';
-      if (this.processTitle) this.processTitle.textContent = 'Archivo a procesar';
-      if (this.dropzoneIcon) this.dropzoneIcon.textContent = '📁';
-    }
-  }
-
-  handleFileSelect(files) {
-    const rawFiles = this.isZipMode ? Array.from(files) : [files[0]];
-
-    const validFiles = rawFiles.filter(file => {
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        alert(`El archivo "${file.name}" supera el límite permitido de ${MAX_FILE_SIZE_MB}MB.`);
-        return false;
-      }
-      return true;
-    });
-
-    if (validFiles.length === 0) return;
-
-    this.filesList = this.isZipMode ? [...this.filesList, ...validFiles] : [validFiles[0]];
-
-    playSquishSound();
-    bananaSystem.spawn(this.gorillaIcon);
-
-    this.renderFileList();
-    this.switchView('process');
-  }
-
-  removeFile(index) {
-    this.filesList.splice(index, 1);
-    if (this.filesList.length === 0) {
-      this.resetUI();
-    } else {
-      this.renderFileList();
-    }
-  }
-
-  renderFileList() {
-    if (!this.fileListContainer) return;
-    this.fileListContainer.innerHTML = '';
-
-    const fragment = document.createDocumentFragment();
-
-    this.filesList.forEach((file, index) => {
-      const item = document.createElement('div');
-      item.className = 'file-item';
-      item.innerHTML = `
-        <span class="file-icon">${getFileEmoji(file)}</span>
-        <div class="file-info">
-          <div class="file-name" title="${escapeHTML(file.name)}">${escapeHTML(file.name)}</div>
-          <div class="file-size">${formatBytes(file.size)}</div>
-        </div>
-        <button class="btn-remove" data-index="${index}">&times;</button>
-      `;
-      fragment.appendChild(item);
-    });
-
-    this.fileListContainer.appendChild(fragment);
-  }
-
-  switchView(viewName) {
-    if (this.initialView) this.initialView.style.display = viewName === 'initial' ? 'block' : 'none';
-    if (this.processView) this.processView.style.display = viewName === 'process' ? 'block' : 'none';
-    if (this.downloadView) this.downloadView.style.display = viewName === 'download' ? 'block' : 'none';
-  }
-
-  async processAndZipFiles() {
-    if (this.filesList.length === 0) return;
-
-    this.btnCompress.disabled = true;
-    if (this.progressContainer) this.progressContainer.style.display = 'block';
-
-    const zip = new JSZip();
-    const totalFiles = this.filesList.length;
-    let originalTotalSize = 0;
-
-    for (let i = 0; i < totalFiles; i++) {
-      const file = this.filesList[i];
-      originalTotalSize += file.size;
-
-      const progress = Math.round((i / totalFiles) * 70);
-      this.updateProgress(progress, `Procesando (${i + 1}/${totalFiles}): ${file.name}`);
-
-      let processedBlob = file;
-      const sanitizedName = sanitizeFilename(file.name);
-
-      try {
-        if (file.type.startsWith('image/')) {
-          processedBlob = await compressImageFile(file);
-        } else if (file.type.startsWith('audio/')) {
-          processedBlob = await compressAudioFile(file);
-        } else if (file.type.startsWith('video/')) {
-          processedBlob = await compressVideoFile(file);
-        }
-
-        // Validación de seguridad / Safety fallback if compressed file is larger
-        if (processedBlob.size >= file.size) {
-          processedBlob = file;
-        }
-      } catch (err) {
-        console.warn(`Fallback al archivo original para ${file.name}:`, err);
-      }
-
-      zip.file(sanitizedName, processedBlob);
-    }
-
-    this.updateProgress(75, 'Generando paquete .ZIP...');
-
-    try {
-      this.generatedZipBlob = await zip.generateAsync({ type: 'blob' }, (metadata) => {
-        const zipProgress = 75 + Math.round((metadata.percent * 0.25));
-        this.updateProgress(zipProgress, `Empacando... ${Math.round(metadata.percent)}%`);
-      });
-
-      const compressedSize = this.generatedZipBlob.size;
-      const savings = Math.max(0, originalTotalSize - compressedSize);
-      const savingsPercent = originalTotalSize > 0 ? ((savings / originalTotalSize) * 100).toFixed(1) : 0;
-
-      if (this.zipStats) {
-        this.zipStats.innerHTML = `
-          <p><strong>Tamaño original:</strong> ${formatBytes(originalTotalSize)}</p>
-          <p><strong>Tamaño final ZIP:</strong> ${formatBytes(compressedSize)}</p>
-          <p><strong>Ahorro total:</strong> ${formatBytes(savings)} (${savingsPercent}%)</p>
-        `;
-      }
-
-      playSquishSound();
-      this.switchView('download');
-    } catch (error) {
-      console.error('Error al generar el ZIP:', error);
-      alert('Ocurrió un error inesperado al comprimir los archivos.');
-    } finally {
-      this.btnCompress.disabled = false;
-      if (this.progressContainer) this.progressContainer.style.display = 'none';
-    }
-  }
-
-  updateProgress(percentage, text) {
-    if (this.progressBar) this.progressBar.style.width = `${percentage}%`;
-    if (this.progressText) this.progressText.innerText = text;
-  }
-
-  triggerDownload() {
-    if (!this.generatedZipBlob) return;
-
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(this.generatedZipBlob);
-    link.download = `kong_compressed_${Date.now()}.zip`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-  }
-
-  resetUI() {
-    this.filesList = [];
-    this.generatedZipBlob = null;
-    if (this.fileInput) this.fileInput.value = '';
-    if (this.fileListContainer) this.fileListContainer.innerHTML = '';
-    if (this.progressContainer) this.progressContainer.style.display = 'none';
-    if (this.progressBar) this.progressBar.style.width = '0%';
-
-    this.switchView('initial');
-    this.updateModeUI();
-  }
-}
-
-// =============================================================================
-// 7. INICIALIZACIÓN DE LA APLICACIÓN / APPLICATION INITIALIZATION
-// =============================================================================
-
-document.addEventListener('DOMContentLoaded', () => {
-  window.kongEngine = new KongEngine();
-});
