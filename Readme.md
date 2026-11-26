@@ -15,7 +15,7 @@ A lightweight web tool designed to reduce file sizes locally. Everything happens
 
 ## Highlights
 
-- **Extremely Versatile**: Supports common file formats such as JPG, PNG, WEBP, PDF, MP3, WAV, MP4, WEBM, SVG, JSON, CSV, and TXT (up to 100 MB).
+- **Extremely Versatile**: Supports common file formats such as JPG, PNG, WEBP, PDF, MP3, WAV, SVG, JSON, CSV, and TXT (up to 100 MB).
 
 - **100% Private and Secure**: Your files never leave your device.
 
